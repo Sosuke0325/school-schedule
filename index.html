@@ -2,17 +2,16 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>時間割管理</title>
-    <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>時間割管理</title>
-    <!-- PWA設定 -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-      <style>
+
+  <!-- PWA設定 & 将来のアイコン変更準備 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <style>
     :root {
       --primary: #2563eb;
       --bg: #f8fafc;
@@ -27,13 +26,15 @@
       margin: 0;
       padding: 0;
     }
-          body {
+
+    body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "HiraginoSans-W4", "Hiragino Sans W4", sans-serif;
       font-weight: normal;
       -webkit-font-smoothing: antialiased;
       background-color: var(--bg);
       color: var(--text);
-      padding-bottom: 75px;
+      /* iPhoneのホームバー余白 + タブバー高さ */
+      padding-bottom: calc(65px + env(safe-area-inset-bottom));
     }
 
     /* 太字（W6）の統一指定 */
@@ -48,7 +49,6 @@
       font-weight: 600;
     }
 
-
     header {
       background: #ffffff;
       padding: 12px 16px;
@@ -58,19 +58,22 @@
       top: 0;
       z-index: 10;
     }
+
     .date-picker-wrap {
       display: inline-flex;
       align-items: center;
       font-size: 1.05rem;
-      font-weight: bold;
       gap: 6px;
     }
+
     .date-picker-wrap input[type="date"] {
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 5px 8px;
       font-size: 0.95rem;
+      font-family: inherit;
     }
+
     .container {
       max-width: 650px;
       margin: 0 auto;
@@ -84,6 +87,7 @@
       flex-direction: column;
       gap: 8px;
     }
+
     .timetable-item {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -94,26 +98,30 @@
       cursor: pointer;
       box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
+
     .timetable-item:active {
       background: #f1f5f9;
     }
+
     .period-badge {
-      width: 48px;
+      width: 52px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
     }
+
     .period-num {
-      font-weight: bold;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       color: var(--primary);
     }
+
     .period-time {
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       color: #64748b;
     }
-        .subject-name {
+
+    .subject-name {
       width: 100px;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "HiraginoSans-W6", "Hiragino Sans W6", sans-serif;
       font-weight: 600;
@@ -123,6 +131,7 @@
       display: flex;
       align-items: center;
     }
+
     .hw-preview {
       flex: 1;
       font-size: 0.88rem;
@@ -133,6 +142,10 @@
       margin-left: 8px;
       border-left: 2px solid var(--border);
       padding-left: 10px;
+    }
+
+    .hw-carried {
+      color: #2563eb;
     }
 
     /* ポップアップ（モーダル）共通 */
@@ -149,6 +162,7 @@
       z-index: 100;
       padding: 16px;
     }
+
     .modal-box {
       background: #ffffff;
       width: 100%;
@@ -157,68 +171,89 @@
       padding: 20px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.15);
     }
+
     .modal-title {
       font-size: 1.05rem;
-      font-weight: bold;
       margin-bottom: 16px;
       text-align: center;
     }
+
     .form-group {
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
+
     .form-group label {
       display: block;
       font-size: 0.85rem;
       color: #475569;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
-    .form-group textarea, .form-group input {
+
+    .form-group textarea, 
+    .form-group input {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 0.95rem;
+      font-family: inherit;
+      background: #ffffff;
+      -webkit-appearance: none;
+      appearance: none;
     }
+
+    /* iOSの時刻入力崩れ対策 */
+    input[type="time"] {
+      text-align: center;
+      display: block;
+      line-height: normal;
+    }
+
     .modal-actions {
       display: flex;
       gap: 8px;
       margin-top: 16px;
     }
+
     .btn {
       flex: 1;
       padding: 10px;
       border-radius: 6px;
       border: none;
       font-size: 0.95rem;
-      font-weight: bold;
       cursor: pointer;
     }
+
     .btn-primary { background: var(--primary); color: white; }
     .btn-secondary { background: #e2e8f0; color: #475569; }
 
-    /* 下部タブバー */
+    /* 下部タブバー（iPhoneホームバー余白対応） */
     .tab-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 60px;
       background: #ffffff;
       border-top: 1px solid var(--border);
       display: flex;
       z-index: 10;
+      padding-bottom: env(safe-area-inset-bottom);
+      box-sizing: content-box;
     }
+
     .tab-item {
       flex: 1;
+      height: 54px;
       display: flex;
       justify-content: center;
       align-items: center;
       font-size: 0.95rem;
-      font-weight: bold;
       color: #94a3b8;
       cursor: pointer;
       border-top: 3px solid transparent;
+      user-select: none;
     }
+
     .tab-item.active {
       color: var(--primary);
       border-top: 3px solid var(--primary);
@@ -234,8 +269,8 @@
       padding: 16px;
       margin-bottom: 16px;
     }
+
     .setting-title {
-      font-weight: bold;
       font-size: 1rem;
       margin-bottom: 12px;
       color: #0f172a;
@@ -246,29 +281,30 @@
       overflow-x: auto;
       margin-bottom: 8px;
     }
+
     .schedule-table {
       width: 100%;
       border-collapse: collapse;
       text-align: center;
       font-size: 0.85rem;
     }
+
     .schedule-table th, .schedule-table td {
       border: 1px solid var(--border);
       padding: 6px 2px;
     }
+
     .schedule-table th {
       background: #f1f5f9;
       color: #475569;
     }
+
     .schedule-table td {
       cursor: pointer;
       background: #fff;
       height: 40px;
-      transition: background 0.1s;
     }
-    .schedule-table td:hover {
-      background: var(--accent);
-    }
+
     .period-col {
       font-weight: bold;
       background: #f8fafc !important;
@@ -282,6 +318,7 @@
       grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
+
     .time-row {
       display: flex;
       align-items: center;
@@ -292,11 +329,13 @@
       font-size: 0.85rem;
       background: #fff;
     }
+
     .time-row input[type="time"] {
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 2px 4px;
+      padding: 4px 6px;
       font-size: 0.85rem;
+      width: 90px;
     }
   </style>
 </head>
@@ -318,7 +357,7 @@
   <!-- 2. 設定タブ画面 -->
   <div id="pageSettings" class="page">
     <header>
-      <div style="font-weight: bold; font-size: 1.05rem;">設定・時間割管理</div>
+      <div style="font-weight: 600; font-size: 1.05rem;">設定・時間割管理</div>
     </header>
     <div class="container">
       
@@ -356,11 +395,11 @@
         <div class="setting-title">🔔 その他の通知時刻</div>
         <div class="form-group">
           <label>下校時刻（持ち帰り自習道具通知）</label>
-          <input type="time" id="leaveSchoolTime" value="16:00">
+          <input type="time" id="leaveSchoolTime" value="15:25" onchange="saveNotificationTimes()">
         </div>
         <div class="form-group">
           <label>夜の宿題リマインド</label>
-          <input type="time" id="homeworkNoticeTime" value="20:00">
+          <input type="time" id="homeworkNoticeTime" value="20:00" onchange="saveNotificationTimes()">
         </div>
       </div>
 
@@ -376,7 +415,7 @@
         <textarea id="modalLessonContent" rows="3" placeholder="習った内容・要点"></textarea>
       </div>
       <div class="form-group">
-        <label>次回の宿題</label>
+        <label>宿題（次回授業まで引き継がれます）</label>
         <input type="text" id="modalHomeworkContent" placeholder="例: ワーク p.24〜25">
       </div>
       <div class="modal-actions">
@@ -429,6 +468,7 @@
     };
 
     let activePeriod = null;
+    let activeSubjectName = null;
     let editingDay = null;
     let editingPeriod = null;
 
@@ -442,10 +482,22 @@
       return data ? JSON.parse(data) : defaultPeriodTimes;
     }
 
+    function getSubjectHomeworks() {
+      const data = localStorage.getItem("subjectHomeworks");
+      return data ? JSON.parse(data) : {};
+    }
+
     // 初期化
     window.addEventListener("DOMContentLoaded", () => {
       const today = new Date().toISOString().split("T")[0];
       document.getElementById("selectedDate").value = today;
+
+      // 通知時刻の読み込み
+      const leaveTime = localStorage.getItem("leaveSchoolTime") || "15:25";
+      const hwNoticeTime = localStorage.getItem("homeworkNoticeTime") || "20:00";
+      document.getElementById("leaveSchoolTime").value = leaveTime;
+      document.getElementById("homeworkNoticeTime").value = hwNoticeTime;
+
       renderSchedule();
       renderWeeklyTable();
       renderPeriodTimeInputs();
@@ -476,6 +528,7 @@
       const master = getMasterSchedule();
       const currentSubjects = master[dayOfWeek] || ["-", "-", "-", "-", "-", "-", "-"];
       const times = getPeriodTimes();
+      const subjectHomeworks = getSubjectHomeworks();
 
       const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
       const listContainer = document.getElementById("timetableList");
@@ -484,22 +537,34 @@
       for (let i = 1; i <= 7; i++) {
         const subject = dayData[i]?.customSubject || currentSubjects[i - 1] || "-";
         
-        // 7限が「-」や空の場合は非表示にする（7限がある日だけ出す）
+        // 7限が空きコマの場合は非表示
         if (i === 7 && (subject === "-" || subject.trim() === "")) continue;
 
-        const homework = dayData[i]?.homework || "（宿題なし）";
+        // 宿題判定（当日の入力があれば優先、なければ前回から引き継ぎ）
+        let homework = "";
+        let isCarried = false;
+
+        if (dayData[i]?.homework !== undefined) {
+          homework = dayData[i].homework;
+        } else if (subject !== "-" && subjectHomeworks[subject]) {
+          homework = subjectHomeworks[subject];
+          isCarried = true;
+        }
+
+        const homeworkText = homework ? homework : "（宿題なし）";
+        const carriedClass = (isCarried && homework) ? "hw-carried" : "";
         const endTime = times[i] ? `~${times[i]}` : "";
 
         const li = document.createElement("li");
         li.className = "timetable-item";
-        li.onclick = () => openEntryModal(i, subject, dayData[i]);
+        li.onclick = () => openEntryModal(i, subject, dayData[i], homework);
         li.innerHTML = `
           <div class="period-badge">
             <span class="period-num">${i}限</span>
             <span class="period-time">${endTime}</span>
           </div>
           <div class="subject-name">${subject}</div>
-          <div class="hw-preview">${homework}</div>
+          <div class="hw-preview ${carriedClass}">${homeworkText}</div>
         `;
         listContainer.appendChild(li);
       }
@@ -548,9 +613,17 @@
       renderSchedule();
     }
 
+    function saveNotificationTimes() {
+      const leave = document.getElementById("leaveSchoolTime").value;
+      const hw = document.getElementById("homeworkNoticeTime").value;
+      localStorage.setItem("leaveSchoolTime", leave);
+      localStorage.setItem("homeworkNoticeTime", hw);
+    }
+
     // ポップアップ操作
-    function openEntryModal(period, subject, existingData) {
+    function openEntryModal(period, subject, existingData, currentHomework) {
       activePeriod = period;
+      activeSubjectName = subject;
       const dateStr = document.getElementById("selectedDate").value;
       const dateObj = new Date(dateStr + "T00:00:00");
       const days = ["日", "月", "火", "水", "木", "金", "土"];
@@ -559,7 +632,7 @@
         `${dateObj.getMonth() + 1}月${dateObj.getDate()}日(${days[dateObj.getDay()]}) ${period}限 "${subject}"`;
       
       document.getElementById("modalLessonContent").value = existingData?.lesson || "";
-      document.getElementById("modalHomeworkContent").value = existingData?.homework || "";
+      document.getElementById("modalHomeworkContent").value = (currentHomework !== undefined) ? currentHomework : (existingData?.homework || "");
       
       document.getElementById("entryModal").style.display = "flex";
     }
@@ -580,12 +653,21 @@
     function saveModalEntry() {
       const dateStr = document.getElementById("selectedDate").value;
       const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
+      const hwValue = document.getElementById("modalHomeworkContent").value.trim();
 
       if (!dayData[activePeriod]) dayData[activePeriod] = {};
       dayData[activePeriod].lesson = document.getElementById("modalLessonContent").value;
-      dayData[activePeriod].homework = document.getElementById("modalHomeworkContent").value;
+      dayData[activePeriod].homework = hwValue;
 
       localStorage.setItem("dayData_" + dateStr, JSON.stringify(dayData));
+
+      // 教科ごとの最新宿題として保存（次回授業への引き継ぎ用）
+      if (activeSubjectName && activeSubjectName !== "-") {
+        const subjectHomeworks = getSubjectHomeworks();
+        subjectHomeworks[activeSubjectName] = hwValue;
+        localStorage.setItem("subjectHomeworks", JSON.stringify(subjectHomeworks));
+      }
+
       closeModal("entryModal");
       renderSchedule();
     }
