@@ -5,20 +5,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>時間割管理</title>
 
-  <!-- PWA設定 & 将来のアイコン変更準備 -->
+  <!-- PWA設定 & アイコン準備 -->
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
   <link rel="apple-touch-icon" href="icon.png">
 
   <style>
+    /* ライトモード（標準） */
     :root {
       --primary: #2563eb;
       --bg: #f8fafc;
       --card-bg: #ffffff;
+      --header-bg: #ffffff;
       --text: #1e293b;
+      --text-sub: #64748b;
       --border: #e2e8f0;
       --accent: #eff6ff;
+      --input-bg: #ffffff;
+      --table-header: #f1f5f9;
+      --card-active: #f1f5f9;
+      --danger: #ef4444;
+      --danger-bg: #fee2e2;
+      --warning-bg: #fffbeb;
+      --warning-border: #fde68a;
+      --warning-text: #b45309;
+      --overlay-bg: rgba(0, 0, 0, 0.45);
+    }
+
+    /* 端末設定に合わせたダークモード */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary: #3b82f6;
+        --bg: #0b1120;
+        --card-bg: #1e293b;
+        --header-bg: #111827;
+        --text: #f1f5f9;
+        --text-sub: #94a3b8;
+        --border: #334155;
+        --accent: #1e3a5f;
+        --input-bg: #0f172a;
+        --table-header: #0f172a;
+        --card-active: #334155;
+        --danger: #f87171;
+        --danger-bg: #451a1a;
+        --warning-bg: #3b2808;
+        --warning-border: #854d0e;
+        --warning-text: #fde68a;
+        --overlay-bg: rgba(0, 0, 0, 0.75);
+      }
     }
 
     * {
@@ -33,24 +70,23 @@
       -webkit-font-smoothing: antialiased;
       background-color: var(--bg);
       color: var(--text);
-      /* iPhoneのホームバー余白 + タブバー高さ */
       padding-bottom: calc(65px + env(safe-area-inset-bottom));
     }
 
-    /* 太字（W6）の統一指定 */
     b, strong, th,
     .period-num,
     .setting-title,
     .modal-title,
     .date-picker-wrap,
     .tab-item,
-    .btn {
+    .btn,
+    .test-counter-text {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "HiraginoSans-W6", "Hiragino Sans W6", sans-serif;
       font-weight: 600;
     }
 
     header {
-      background: #ffffff;
+      background: var(--header-bg);
       padding: 12px 16px;
       text-align: center;
       border-bottom: 1px solid var(--border);
@@ -63,7 +99,7 @@
       display: inline-flex;
       align-items: center;
       font-size: 1.05rem;
-      gap: 6px;
+      gap: 8px;
     }
 
     .date-picker-wrap input[type="date"] {
@@ -72,6 +108,42 @@
       padding: 5px 8px;
       font-size: 0.95rem;
       font-family: inherit;
+      background: var(--input-bg);
+      color: var(--text);
+    }
+
+    .btn-today {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.85rem;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    /* テストカウンター帯 */
+    .test-counter-banner {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.9rem;
+    }
+    .test-counter-banner.near {
+      background: var(--warning-bg);
+      border-bottom-color: var(--warning-border);
+      color: var(--warning-text);
+    }
+    .test-counter-days {
+      font-size: 1.15rem;
+      color: var(--primary);
+    }
+    .test-counter-banner.near .test-counter-days {
+      color: var(--danger);
     }
 
     .container {
@@ -100,7 +172,7 @@
     }
 
     .timetable-item:active {
-      background: #f1f5f9;
+      background: var(--card-active);
     }
 
     .period-badge {
@@ -118,14 +190,14 @@
 
     .period-time {
       font-size: 0.72rem;
-      color: #64748b;
+      color: var(--text-sub);
     }
 
     .subject-name {
       width: 100px;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "HiraginoSans-W6", "Hiragino Sans W6", sans-serif;
       font-weight: 600;
-      font-size: 1.45rem; /* 「1限〜時刻」の縦幅に揃えた大きめサイズ */
+      font-size: 1.45rem;
       line-height: 1.2;
       padding-left: 12px;
       display: flex;
@@ -135,7 +207,7 @@
     .hw-preview {
       flex: 1;
       font-size: 0.88rem;
-      color: #64748b;
+      color: var(--text-sub);
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -145,7 +217,66 @@
     }
 
     .hw-carried {
-      color: #2563eb;
+      color: var(--primary);
+    }
+
+    /* 宿題・持ち物セクション */
+    .hw-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .hw-card-title {
+      font-size: 0.95rem;
+      color: var(--text);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      padding: 4px 0;
+    }
+    .item-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+    }
+    .item-empty {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+    }
+
+    /* 候補ボタン群 */
+    .template-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .chip-btn {
+      background: var(--card-active);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 3px 10px;
+      font-size: 0.78rem;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chip-btn:active {
+      opacity: 0.7;
     }
 
     /* ポップアップ（モーダル）共通 */
@@ -155,7 +286,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.45);
+      background: var(--overlay-bg);
       display: none;
       justify-content: center;
       align-items: center;
@@ -164,55 +295,57 @@
     }
 
     .modal-box {
-      background: #ffffff;
+      background: var(--card-bg);
+      color: var(--text);
       width: 100%;
-      max-width: 380px;
+      max-width: 400px;
       border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid var(--border);
     }
 
     .modal-title {
       font-size: 1.05rem;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       text-align: center;
     }
 
     .form-group {
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
     .form-group label {
       display: block;
-      font-size: 0.85rem;
-      color: #475569;
-      margin-bottom: 6px;
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      margin-bottom: 4px;
     }
 
     .form-group textarea, 
-    .form-group input {
+    .form-group input,
+    .form-group select {
       width: 100%;
-      padding: 10px;
+      padding: 8px 10px;
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 6px;
       font-size: 0.95rem;
       font-family: inherit;
-      background: #ffffff;
-      -webkit-appearance: none;
-      appearance: none;
+      background: var(--input-bg);
+      color: var(--text);
     }
 
-    /* iOSの時刻入力崩れ対策 */
     input[type="time"] {
       text-align: center;
       display: block;
-      line-height: normal;
     }
 
     .modal-actions {
       display: flex;
       gap: 8px;
-      margin-top: 16px;
+      margin-top: 14px;
     }
 
     .btn {
@@ -222,18 +355,20 @@
       border: none;
       font-size: 0.95rem;
       cursor: pointer;
+      text-align: center;
     }
 
     .btn-primary { background: var(--primary); color: white; }
-    .btn-secondary { background: #e2e8f0; color: #475569; }
+    .btn-secondary { background: var(--card-active); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--border); }
 
-    /* 下部タブバー（iPhoneホームバー余白対応） */
+    /* 下部タブバー */
     .tab-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       width: 100%;
-      background: #ffffff;
+      background: var(--header-bg);
       border-top: 1px solid var(--border);
       display: flex;
       z-index: 10;
@@ -248,7 +383,7 @@
       justify-content: center;
       align-items: center;
       font-size: 0.95rem;
-      color: #94a3b8;
+      color: var(--text-sub);
       cursor: pointer;
       border-top: 3px solid transparent;
       user-select: none;
@@ -259,7 +394,6 @@
       border-top: 3px solid var(--primary);
     }
 
-    /* ページ切り替え */
     .page { display: none; }
     .page.active { display: block; }
     .setting-card {
@@ -273,10 +407,9 @@
     .setting-title {
       font-size: 1rem;
       margin-bottom: 12px;
-      color: #0f172a;
+      color: var(--text);
     }
 
-    /* 週間時間割カレンダーテーブル */
     .table-wrap {
       overflow-x: auto;
       margin-bottom: 8px;
@@ -295,24 +428,25 @@
     }
 
     .schedule-table th {
-      background: #f1f5f9;
-      color: #475569;
+      background: var(--table-header);
+      color: var(--text-sub);
     }
 
     .schedule-table td {
       cursor: pointer;
-      background: #fff;
+      background: var(--card-bg);
+      color: var(--text);
       height: 40px;
     }
 
     .period-col {
       font-weight: bold;
-      background: #f8fafc !important;
+      background: var(--bg) !important;
       cursor: default !important;
       width: 32px;
+      color: var(--text-sub);
     }
 
-    /* 各時限の終了時刻設定リスト */
     .time-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -327,7 +461,8 @@
       border-radius: 6px;
       padding: 6px 10px;
       font-size: 0.85rem;
-      background: #fff;
+      background: var(--card-bg);
+      color: var(--text);
     }
 
     .time-row input[type="time"] {
@@ -336,35 +471,140 @@
       padding: 4px 6px;
       font-size: 0.85rem;
       width: 90px;
+      background: var(--input-bg);
+      color: var(--text);
+    }
+
+    .subject-rule-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      background: var(--card-bg);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.15s;
+    }
+    .subject-rule-card:active {
+      background: var(--card-active);
     }
   </style>
 </head>
 <body>
 
-  <!-- 1. 時間割タブ画面 -->
+  <!-- 1. 時間割タブ -->
   <div id="pageSchedule" class="page active">
     <header>
       <div class="date-picker-wrap">
         <input type="date" id="selectedDate" onchange="renderSchedule()">
+        <button class="btn-today" onclick="setToday()">今日</button>
       </div>
     </header>
+
+    <div id="testCounterBanner" class="test-counter-banner" style="display: none;">
+      <span id="testCounterText">🎯 <span id="testNameLabel">定期テスト</span>まで あと</span>
+      <span class="test-counter-days" id="testDaysLeft">0</span>日
+    </div>
 
     <div class="container">
       <ul class="timetable-list" id="timetableList"></ul>
     </div>
   </div>
 
-  <!-- 2. 設定タブ画面 -->
+  <!-- 2. 宿題・持ち物タブ -->
+  <div id="pageHomework" class="page">
+    <header>
+      <div style="font-weight: 600; font-size: 1.05rem;">宿題・持ち物チェック</div>
+    </header>
+    <div class="container">
+      <div class="hw-card">
+        <div class="hw-card-title">
+          <span>🎒 今日持ち帰るもの</span>
+          <span style="font-size: 0.78rem; color: var(--text-sub);" id="todayDateLabel"></span>
+        </div>
+        <ul class="item-list" id="tomorrowItemsList"></ul>
+      </div>
+
+      <div class="hw-card">
+        <div class="hw-card-title">
+          <span id="nextHomeworkTitle">📝 明日締め切りの宿題</span>
+        </div>
+        <ul class="item-list" id="tomorrowHomeworkList"></ul>
+      </div>
+
+      <div class="hw-card">
+        <div class="hw-card-title">
+          <span>📖 今日出された宿題</span>
+        </div>
+        <ul class="item-list" id="todayHomeworkList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 設定タブ -->
   <div id="pageSettings" class="page">
     <header>
       <div style="font-weight: 600; font-size: 1.05rem;">設定・時間割管理</div>
     </header>
     <div class="container">
       
-      <!-- 週間時間割カレンダー（タップで変更） -->
+      <!-- テスト日程設定 -->
       <div class="setting-card">
-        <div class="setting-title">📅 基本時間割（マスをタップして変更）</div>
-        <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 8px;">変更したいコマをタップすると教科名を編集できます。</p>
+        <div class="setting-title">🎯 次回テスト設定（カウンター用）</div>
+        <div class="form-group">
+          <label>テスト名</label>
+          <input type="text" id="testNameInput" placeholder="例: 2学期中間考査">
+        </div>
+        <div class="form-group">
+          <label>テスト開始日</label>
+          <input type="date" id="testDateInput">
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" style="flex: 0 0 90px;" onclick="clearTestSettings()">クリア</button>
+          <button class="btn btn-primary" onclick="saveTestSettings()">日程を保存</button>
+        </div>
+      </div>
+
+      <!-- 教科別テンプレート・持ち物設定 -->
+      <div class="setting-card">
+        <div class="setting-title">📚 教科別持ち物・宿題候補の登録</div>
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">カードをタップすると内容の編集や削除ができます。</p>
+        <div id="subjectRulesContainer"></div>
+        <button class="btn btn-secondary" style="margin-top: 8px; width: 100%;" onclick="openRuleModal()">＋ 教科ルールを追加</button>
+      </div>
+
+      <!-- 臨時時間割設定 -->
+      <div class="setting-card">
+        <div class="setting-title">⚡ 臨時時間割（日付を指定して1日のみ変更）</div>
+        <div class="form-group">
+          <label>対象日</label>
+          <input type="date" id="temporaryDateInput">
+        </div>
+        <div class="form-group">
+          <label>時限</label>
+          <select id="temporaryPeriodSelect">
+            <option value="1">1限</option>
+            <option value="2">2限</option>
+            <option value="3">3限</option>
+            <option value="4">4限</option>
+            <option value="5">5限</option>
+            <option value="6">6限</option>
+            <option value="7">7限</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>変更後の教科名</label>
+          <input type="text" id="temporarySubjectInput" placeholder="例: 自習、学活">
+        </div>
+        <button class="btn btn-primary" onclick="saveTemporarySubject()">臨時教科を適用</button>
+      </div>
+
+      <!-- 基本時間割カレンダー（修正：タイトルをすっきりさせ、説明文を復活） -->
+      <div class="setting-card">
+        <div class="setting-title">📅 基本時間割</div>
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 8px;">変更したいコマをタップすると教科名を編集できます。</p>
         <div class="table-wrap">
           <table class="schedule-table">
             <thead>
@@ -382,19 +622,19 @@
         </div>
       </div>
 
-      <!-- 各時限の終了時刻設定 -->
+      <!-- 各時限の終了時刻（修正：説明文を復活） -->
       <div class="setting-card">
-        <div class="setting-title">⏰ 各時限の終了時刻（通知・目安）</div>
-        <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 10px;">午前・午後それぞれの授業終了時刻を設定します。</p>
+        <div class="setting-title">⏰ 各時限の終了時刻</div>
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">各時限の授業終了時刻を設定します。</p>
         <div class="time-grid" id="periodTimesContainer"></div>
         <button class="btn btn-primary" style="margin-top: 12px; width: 100%;" onclick="savePeriodTimes()">終了時刻を保存</button>
       </div>
 
-      <!-- その他通知設定 -->
+      <!-- 通知設定 -->
       <div class="setting-card">
-        <div class="setting-title">🔔 その他の通知時刻</div>
+        <div class="setting-title">🔔 その他の通知時刻（未リリース）</div>
         <div class="form-group">
-          <label>下校時刻（持ち帰り自習道具通知）</label>
+          <label>下校時刻（持ち帰り通知）</label>
           <input type="time" id="leaveSchoolTime" value="15:25" onchange="saveNotificationTimes()">
         </div>
         <div class="form-group">
@@ -406,18 +646,32 @@
     </div>
   </div>
 
-  <!-- ポップアップ1：日々の授業内容・宿題入力モーダル -->
+  <!-- ポップアップ：授業内容・宿題入力モーダル -->
   <div class="modal-overlay" id="entryModal">
     <div class="modal-box">
-      <div class="modal-title" id="modalHeaderTitle">○月×日(曜) 教科</div>
+      <div class="modal-title" id="modalHeaderTitle">○月×日(曜) 1限 教科</div>
+
       <div class="form-group">
         <label>授業内容</label>
         <textarea id="modalLessonContent" rows="3" placeholder="習った内容・要点"></textarea>
       </div>
+
       <div class="form-group">
-        <label>宿題（次回授業まで引き継がれます）</label>
+        <label>宿題</label>
         <input type="text" id="modalHomeworkContent" placeholder="例: ワーク p.24〜25">
+        <div class="template-chips" id="hwTemplateChips"></div>
       </div>
+
+      <div class="form-group">
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="modalHasDueDate" style="width: auto; height: auto;" onchange="toggleDueDateInput()">
+          <span>提出期限日を指定する（次回授業ではない場合）</span>
+        </label>
+        <div id="dueDateWrap" style="display: none; margin-top: 6px;">
+          <input type="date" id="modalHomeworkDueDate">
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-secondary" onclick="closeModal('entryModal')">キャンセル</button>
         <button class="btn btn-primary" onclick="saveModalEntry()">保存</button>
@@ -425,17 +679,29 @@
     </div>
   </div>
 
-  <!-- ポップアップ2：時間割マス変更モーダル -->
-  <div class="modal-overlay" id="editSubjectModal">
+  <!-- ポップアップ：教科ルール追加・編集モーダル -->
+  <div class="modal-overlay" id="ruleModal">
     <div class="modal-box">
-      <div class="modal-title" id="editSubjectTitle">月曜 1限の教科を変更</div>
+      <div class="modal-title" id="ruleModalTitle">教科ルールの登録</div>
+      <input type="hidden" id="originalRuleSubject">
+
       <div class="form-group">
-        <label>新しい教科名（「-」や「なし」で空きコマ）</label>
-        <input type="text" id="targetSubjectName" placeholder="例: 数学">
+        <label>教科名</label>
+        <input type="text" id="ruleSubjectName" placeholder="例: 英語">
       </div>
+      <div class="form-group">
+        <label>よく出る宿題候補（カンマ区切り）</label>
+        <input type="text" id="ruleHwTemplates" placeholder="例: ワーク, 単語プリント">
+      </div>
+      <div class="form-group">
+        <label>持ち帰るもの（カンマ区切り）</label>
+        <input type="text" id="ruleItems" placeholder="例: 教科書, ワーク, 単語帳">
+      </div>
+
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeModal('editSubjectModal')">キャンセル</button>
-        <button class="btn btn-primary" onclick="saveSubjectChange()">変更する</button>
+        <button id="btnDeleteRule" class="btn btn-danger" style="display: none;" onclick="deleteCurrentRule()">削除</button>
+        <button class="btn btn-secondary" onclick="closeModal('ruleModal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveSubjectRule()">保存</button>
       </div>
     </div>
   </div>
@@ -443,20 +709,19 @@
   <!-- 下部タブバー -->
   <div class="tab-bar">
     <div class="tab-item active" id="tabSchedule" onclick="switchTab('pageSchedule')">時間割</div>
+    <div class="tab-item" id="tabHomework" onclick="switchTab('pageHomework')">宿題</div>
     <div class="tab-item" id="tabSettings" onclick="switchTab('pageSettings')">設定</div>
   </div>
 
   <script>
-    // デフォルトの基本時間割（1〜7限）
     const defaultMasterSchedule = {
-      1: ["国語", "数学", "英語", "理科", "社会", "体育", "-"], // 月
-      2: ["数学", "英語", "理科", "社会", "国語", "音楽", "-"], // 火
-      3: ["英語", "理科", "数学", "体育", "国語", "道徳", "-"], // 水
-      4: ["理科", "国語", "社会", "数学", "英語", "美術", "総合"], // 木 (7限例)
-      5: ["社会", "数学", "英語", "国語", "総合", "総合", "-"]  // 金
+      1: ["国語", "数学", "英語", "理科", "社会", "体育", "-"],
+      2: ["数学", "英語", "理科", "社会", "国語", "音楽", "-"],
+      3: ["英語", "理科", "数学", "体育", "国語", "道徳", "-"],
+      4: ["理科", "国語", "社会", "数学", "英語", "美術", "総合"],
+      5: ["社会", "数学", "英語", "国語", "総合", "総合", "-"]
     };
 
-    // デフォルトの各時限終了時刻
     const defaultPeriodTimes = {
       1: "09:40",
       2: "10:40",
@@ -469,8 +734,11 @@
 
     let activePeriod = null;
     let activeSubjectName = null;
-    let editingDay = null;
-    let editingPeriod = null;
+
+    function getTodayString() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
 
     function getMasterSchedule() {
       const data = localStorage.getItem("masterSchedule");
@@ -482,28 +750,45 @@
       return data ? JSON.parse(data) : defaultPeriodTimes;
     }
 
+    function getSubjectRules() {
+      const data = localStorage.getItem("subjectRules");
+      return data ? JSON.parse(data) : {};
+    }
+
     function getSubjectHomeworks() {
       const data = localStorage.getItem("subjectHomeworks");
       return data ? JSON.parse(data) : {};
     }
 
-    // 初期化
     window.addEventListener("DOMContentLoaded", () => {
-      const today = new Date().toISOString().split("T")[0];
-      document.getElementById("selectedDate").value = today;
+      setToday();
 
-      // 通知時刻の読み込み
-      const leaveTime = localStorage.getItem("leaveSchoolTime") || "15:25";
-      const hwNoticeTime = localStorage.getItem("homeworkNoticeTime") || "20:00";
-      document.getElementById("leaveSchoolTime").value = leaveTime;
-      document.getElementById("homeworkNoticeTime").value = hwNoticeTime;
+      document.getElementById("temporaryDateInput").value = getTodayString();
 
-      renderSchedule();
+      document.getElementById("testNameInput").value = localStorage.getItem("testName") || "定期テスト";
+      const savedTestDate = localStorage.getItem("testDate");
+      document.getElementById("testDateInput").value = savedTestDate || getTodayString();
+
+      document.getElementById("leaveSchoolTime").value = localStorage.getItem("leaveSchoolTime") || "15:25";
+      document.getElementById("homeworkNoticeTime").value = localStorage.getItem("homeworkNoticeTime") || "20:00";
+
+      updateTestCounter();
       renderWeeklyTable();
       renderPeriodTimeInputs();
+      renderSubjectRules();
     });
 
-    // タブ切り替え
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        updateTestCounter();
+      }
+    });
+
+    function setToday() {
+      document.getElementById("selectedDate").value = getTodayString();
+      renderSchedule();
+    }
+
     function switchTab(tabId) {
       document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
       document.querySelectorAll(".tab-item").forEach(t => t.classList.remove("active"));
@@ -512,19 +797,66 @@
       if (tabId === "pageSchedule") {
         document.getElementById("tabSchedule").classList.add("active");
         renderSchedule();
+        updateTestCounter();
+      } else if (tabId === "pageHomework") {
+        document.getElementById("tabHomework").classList.add("active");
+        renderHomeworkTab();
       } else {
         document.getElementById("tabSettings").classList.add("active");
         renderWeeklyTable();
+        renderSubjectRules();
       }
     }
 
-    // メイン画面（日次時間割）描画
+    function updateTestCounter() {
+      const testDateStr = localStorage.getItem("testDate");
+      const testName = localStorage.getItem("testName") || "定期テスト";
+      const banner = document.getElementById("testCounterBanner");
+
+      if (!testDateStr) {
+        banner.style.display = "none";
+        return;
+      }
+
+      const today = new Date(getTodayString() + "T00:00:00");
+      const testDate = new Date(testDateStr + "T00:00:00");
+      const diffTime = testDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays >= 0) {
+        banner.style.display = "flex";
+        document.getElementById("testNameLabel").innerText = testName;
+        document.getElementById("testDaysLeft").innerText = diffDays;
+        if (diffDays <= 3) {
+          banner.classList.add("near");
+        } else {
+          banner.classList.remove("near");
+        }
+      } else {
+        banner.style.display = "none";
+      }
+    }
+
+    function saveTestSettings() {
+      localStorage.setItem("testName", document.getElementById("testNameInput").value.trim());
+      localStorage.setItem("testDate", document.getElementById("testDateInput").value);
+      alert("テスト日程を保存しました！");
+      updateTestCounter();
+    }
+
+    function clearTestSettings() {
+      if (!confirm("テストカウンターの設定を解除（クリア）しますか？")) return;
+      localStorage.removeItem("testDate");
+      document.getElementById("testDateInput").value = getTodayString();
+      updateTestCounter();
+    }
+
     function renderSchedule() {
       const dateStr = document.getElementById("selectedDate").value;
       if (!dateStr) return;
 
       const dateObj = new Date(dateStr + "T00:00:00");
-      const dayOfWeek = dateObj.getDay(); // 0:日, 1:月...
+      const dayOfWeek = dateObj.getDay();
       const master = getMasterSchedule();
       const currentSubjects = master[dayOfWeek] || ["-", "-", "-", "-", "-", "-", "-"];
       const times = getPeriodTimes();
@@ -536,19 +868,19 @@
 
       for (let i = 1; i <= 7; i++) {
         const subject = dayData[i]?.customSubject || currentSubjects[i - 1] || "-";
-        
-        // 7限が空きコマの場合は非表示
         if (i === 7 && (subject === "-" || subject.trim() === "")) continue;
 
-        // 宿題判定（当日の入力があれば優先、なければ前回から引き継ぎ）
         let homework = "";
         let isCarried = false;
 
-        if (dayData[i]?.homework !== undefined) {
+        if (dayData[i]?.homework !== undefined && dayData[i]?.homework !== "") {
           homework = dayData[i].homework;
         } else if (subject !== "-" && subjectHomeworks[subject]) {
-          homework = subjectHomeworks[subject];
-          isCarried = true;
+          const hwObj = subjectHomeworks[subject];
+          if (!hwObj.dueDate || hwObj.dueDate >= dateStr) {
+            homework = hwObj.text;
+            isCarried = true;
+          }
         }
 
         const homeworkText = homework ? homework : "（宿題なし）";
@@ -570,7 +902,306 @@
       }
     }
 
-    // 設定画面：週間カレンダーテーブル描画
+    function renderHomeworkTab() {
+      const todayStr = getTodayString();
+      const todayObj = new Date(todayStr + "T00:00:00");
+      const todayDayOfWeek = todayObj.getDay();
+      const days = ["日", "月", "火", "水", "木", "金", "土"];
+
+      document.getElementById("todayDateLabel").innerText = `${todayObj.getMonth() + 1}/${todayObj.getDate()}(${days[todayDayOfWeek]})`;
+
+      let daysToAdd = 1;
+      let isWeekendSkip = false;
+      if (todayDayOfWeek === 5) {
+        daysToAdd = 3;
+        isWeekendSkip = true;
+      } else if (todayDayOfWeek === 6) {
+        daysToAdd = 2;
+        isWeekendSkip = true;
+      }
+
+      const nextSchoolObj = new Date(todayObj);
+      nextSchoolObj.setDate(nextSchoolObj.getDate() + daysToAdd);
+      const nextSchoolStr = `${nextSchoolObj.getFullYear()}-${String(nextSchoolObj.getMonth() + 1).padStart(2, '0')}-${String(nextSchoolObj.getDate()).padStart(2, '0')}`;
+      const nextSchoolDayOfWeek = nextSchoolObj.getDay();
+
+      const hwTitleEl = document.getElementById("nextHomeworkTitle");
+      if (hwTitleEl) {
+        hwTitleEl.innerText = isWeekendSkip ? "📝 月曜締め切りの宿題" : "📝 明日締め切りの宿題";
+      }
+
+      const rules = getSubjectRules();
+      const subjectHomeworks = getSubjectHomeworks();
+      const master = getMasterSchedule();
+      const nextSchoolSubjects = master[nextSchoolDayOfWeek] || [];
+
+      // 1. 今日持ち帰るもの
+      const tomorrowItemsList = document.getElementById("tomorrowItemsList");
+      tomorrowItemsList.innerHTML = "";
+      const itemsSet = new Set();
+
+      nextSchoolSubjects.forEach(sub => {
+        if (rules[sub] && rules[sub].items) {
+          rules[sub].items.forEach(it => itemsSet.add(`${sub}：${it}`));
+        }
+      });
+
+      if (itemsSet.size === 0) {
+        tomorrowItemsList.innerHTML = `<li class="item-empty">持ち帰るものはありません</li>`;
+      } else {
+        itemsSet.forEach(item => {
+          tomorrowItemsList.innerHTML += `
+            <li class="item-row">
+              <input type="checkbox">
+              <span>${item}</span>
+            </li>
+          `;
+        });
+      }
+
+      // 2. 次回授業締め切りの宿題
+      const tomorrowHwList = document.getElementById("tomorrowHomeworkList");
+      tomorrowHwList.innerHTML = "";
+      let hasTomorrowHw = false;
+
+      nextSchoolSubjects.forEach(sub => {
+        if (subjectHomeworks[sub] && subjectHomeworks[sub].text) {
+          const hw = subjectHomeworks[sub];
+          if (!hw.dueDate || hw.dueDate === nextSchoolStr) {
+            hasTomorrowHw = true;
+            tomorrowHwList.innerHTML += `
+              <li class="item-row">
+                <input type="checkbox" onchange="completeHomework('${sub}')">
+                <span><b>${sub}</b>：${hw.text}</span>
+              </li>
+            `;
+          }
+        }
+      });
+      if (!hasTomorrowHw) {
+        tomorrowHwList.innerHTML = `<li class="item-empty">${isWeekendSkip ? "月曜" : "明日"}提出の宿題はありません</li>`;
+      }
+
+      // 3. 今日出された宿題
+      const todayDayData = JSON.parse(localStorage.getItem("dayData_" + todayStr) || "{}");
+      const todayHwList = document.getElementById("todayHomeworkList");
+      todayHwList.innerHTML = "";
+      let hasTodayHw = false;
+
+      for (let i = 1; i <= 7; i++) {
+        if (todayDayData[i]?.homework) {
+          hasTodayHw = true;
+          const sub = todayDayData[i].customSubject || (master[todayDayOfWeek] && master[todayDayOfWeek][i - 1]) || `${i}限`;
+          todayHwList.innerHTML += `
+            <li class="item-row">
+              <span><b>${sub}</b>：${todayDayData[i].homework}</span>
+            </li>
+          `;
+        }
+      }
+      if (!hasTodayHw) {
+        todayHwList.innerHTML = `<li class="item-empty">本日登録された宿題はありません</li>`;
+      }
+    }
+
+    function completeHomework(subject) {
+      const subjectHomeworks = getSubjectHomeworks();
+      delete subjectHomeworks[subject];
+      localStorage.setItem("subjectHomeworks", JSON.stringify(subjectHomeworks));
+      setTimeout(() => {
+        renderHomeworkTab();
+        renderSchedule();
+      }, 200);
+    }
+
+    function toggleDueDateInput() {
+      const isChecked = document.getElementById("modalHasDueDate").checked;
+      const wrap = document.getElementById("dueDateWrap");
+      wrap.style.display = isChecked ? "block" : "none";
+      if (isChecked && !document.getElementById("modalHomeworkDueDate").value) {
+        document.getElementById("modalHomeworkDueDate").value = getTodayString();
+      }
+    }
+
+    function openEntryModal(period, subject, existingData, currentHomework) {
+      activePeriod = period;
+      activeSubjectName = subject;
+      const dateStr = document.getElementById("selectedDate").value;
+      const dateObj = new Date(dateStr + "T00:00:00");
+      const days = ["日", "月", "火", "水", "木", "金", "土"];
+      
+      document.getElementById("modalHeaderTitle").innerText = 
+        `${dateObj.getMonth() + 1}月${dateObj.getDate()}日(${days[dateObj.getDay()]}) ${period}限 ${subject}`;
+      
+      document.getElementById("modalLessonContent").value = existingData?.lesson || "";
+      document.getElementById("modalHomeworkContent").value = (currentHomework && currentHomework !== "（宿題なし）") ? currentHomework : (existingData?.homework || "");
+
+      const hasDueDate = Boolean(existingData?.dueDate);
+      document.getElementById("modalHasDueDate").checked = hasDueDate;
+      document.getElementById("modalHomeworkDueDate").value = existingData?.dueDate || getTodayString();
+      document.getElementById("dueDateWrap").style.display = hasDueDate ? "block" : "none";
+
+      const rules = getSubjectRules();
+      const chipsContainer = document.getElementById("hwTemplateChips");
+      chipsContainer.innerHTML = "";
+      if (rules[subject] && rules[subject].templates) {
+        rules[subject].templates.forEach(t => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "chip-btn";
+          btn.innerText = `+ ${t}`;
+          btn.onclick = () => {
+            const input = document.getElementById("modalHomeworkContent");
+            input.value = input.value ? `${input.value} / ${t}` : t;
+          };
+          chipsContainer.appendChild(btn);
+        });
+      }
+
+      document.getElementById("entryModal").style.display = "flex";
+    }
+
+    function saveModalEntry() {
+      const dateStr = document.getElementById("selectedDate").value;
+      const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
+      const hwValue = document.getElementById("modalHomeworkContent").value.trim();
+      const hasDueDate = document.getElementById("modalHasDueDate").checked;
+      const dueDate = hasDueDate ? document.getElementById("modalHomeworkDueDate").value : "";
+
+      if (!dayData[activePeriod]) dayData[activePeriod] = {};
+      dayData[activePeriod].lesson = document.getElementById("modalLessonContent").value;
+      dayData[activePeriod].homework = hwValue;
+      dayData[activePeriod].dueDate = dueDate;
+
+      localStorage.setItem("dayData_" + dateStr, JSON.stringify(dayData));
+
+      if (activeSubjectName && activeSubjectName !== "-") {
+        const subjectHomeworks = getSubjectHomeworks();
+        if (hwValue) {
+          subjectHomeworks[activeSubjectName] = { text: hwValue, dueDate: dueDate };
+        } else {
+          delete subjectHomeworks[activeSubjectName];
+        }
+        localStorage.setItem("subjectHomeworks", JSON.stringify(subjectHomeworks));
+      }
+
+      closeModal("entryModal");
+      renderSchedule();
+    }
+
+    function renderSubjectRules() {
+      const rules = getSubjectRules();
+      const container = document.getElementById("subjectRulesContainer");
+      container.innerHTML = "";
+
+      const keys = Object.keys(rules);
+      if (keys.length === 0) {
+        container.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-sub); padding: 4px 0;">まだ登録されているルールはありません。</div>`;
+        return;
+      }
+
+      for (let sub of keys) {
+        const item = rules[sub];
+        const div = document.createElement("div");
+        div.className = "subject-rule-card";
+        div.onclick = () => openRuleModal(sub);
+        div.innerHTML = `
+          <div>
+            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px;">${sub}</div>
+            <div style="font-size: 0.8rem; color: var(--text-sub);">📝 宿題候補：${item.templates.join(", ") || "なし"}</div>
+            <div style="font-size: 0.8rem; color: var(--text-sub);">🎒 持ち物：${item.items.join(", ") || "なし"}</div>
+          </div>
+          <span style="color: var(--text-sub); font-size: 1.1rem; padding-left: 8px;">›</span>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    function openRuleModal(subjectName = null) {
+      const modalTitle = document.getElementById("ruleModalTitle");
+      const nameInput = document.getElementById("ruleSubjectName");
+      const hwInput = document.getElementById("ruleHwTemplates");
+      const itemsInput = document.getElementById("ruleItems");
+      const origInput = document.getElementById("originalRuleSubject");
+      const deleteBtn = document.getElementById("btnDeleteRule");
+
+      if (subjectName) {
+        const rules = getSubjectRules();
+        const rule = rules[subjectName] || { items: [], templates: [] };
+        modalTitle.innerText = `「${subjectName}」のルール編集`;
+        origInput.value = subjectName;
+        nameInput.value = subjectName;
+        hwInput.value = rule.templates.join(", ");
+        itemsInput.value = rule.items.join(", ");
+        deleteBtn.style.display = "block";
+      } else {
+        modalTitle.innerText = "教科ルールの新規登録";
+        origInput.value = "";
+        nameInput.value = "";
+        hwInput.value = "";
+        itemsInput.value = "";
+        deleteBtn.style.display = "none";
+      }
+
+      document.getElementById("ruleModal").style.display = "flex";
+    }
+
+    function saveSubjectRule() {
+      const origSub = document.getElementById("originalRuleSubject").value;
+      const sub = document.getElementById("ruleSubjectName").value.trim();
+      if (!sub) {
+        alert("教科名を入力してください。");
+        return;
+      }
+
+      const templates = document.getElementById("ruleHwTemplates").value.split(",").map(s => s.trim()).filter(Boolean);
+      const items = document.getElementById("ruleItems").value.split(",").map(s => s.trim()).filter(Boolean);
+
+      const rules = getSubjectRules();
+
+      if (origSub && origSub !== sub) {
+        delete rules[origSub];
+      }
+
+      rules[sub] = { items, templates };
+      localStorage.setItem("subjectRules", JSON.stringify(rules));
+
+      closeModal("ruleModal");
+      renderSubjectRules();
+    }
+
+    function deleteCurrentRule() {
+      const origSub = document.getElementById("originalRuleSubject").value;
+      if (!origSub) return;
+      if (!confirm(`「${origSub}」の登録ルールを削除しますか？`)) return;
+
+      const rules = getSubjectRules();
+      delete rules[origSub];
+      localStorage.setItem("subjectRules", JSON.stringify(rules));
+
+      closeModal("ruleModal");
+      renderSubjectRules();
+    }
+
+    function saveTemporarySubject() {
+      const dateStr = document.getElementById("temporaryDateInput").value;
+      const period = document.getElementById("temporaryPeriodSelect").value;
+      const sub = document.getElementById("temporarySubjectInput").value.trim();
+
+      if (!dateStr || !sub) {
+        alert("日付と教科名を入力してください。");
+        return;
+      }
+
+      const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
+      if (!dayData[period]) dayData[period] = {};
+      dayData[period].customSubject = sub;
+
+      localStorage.setItem("dayData_" + dateStr, JSON.stringify(dayData));
+      alert(`${dateStr} の ${period}限を「${sub}」に変更しました。`);
+      renderSchedule();
+    }
+
     function renderWeeklyTable() {
       const master = getMasterSchedule();
       const tbody = document.getElementById("weeklyTableBody");
@@ -580,14 +1211,25 @@
         let rowHtml = `<tr><td class="period-col">${p}</td>`;
         for (let d = 1; d <= 5; d++) {
           const subject = (master[d] && master[d][p - 1]) ? master[d][p - 1] : "-";
-          rowHtml += `<td onclick="openEditSubjectModal(${d}, ${p}, '${subject}')">${subject}</td>`;
+          rowHtml += `<td onclick="quickEditMaster(${d}, ${p}, '${subject}')">${subject}</td>`;
         }
         rowHtml += `</tr>`;
         tbody.innerHTML += rowHtml;
       }
     }
 
-    // 設定画面：各時限の時刻入力欄描画
+    function quickEditMaster(day, period, cur) {
+      const next = prompt(`${day}曜 ${period}限の教科名を入力してください:`, cur === "-" ? "" : cur);
+      if (next !== null) {
+        const master = getMasterSchedule();
+        if (!master[day]) master[day] = [];
+        master[day][period - 1] = next.trim() || "-";
+        localStorage.setItem("masterSchedule", JSON.stringify(master));
+        renderWeeklyTable();
+        renderSchedule();
+      }
+    }
+
     function renderPeriodTimeInputs() {
       const times = getPeriodTimes();
       const container = document.getElementById("periodTimesContainer");
@@ -609,79 +1251,17 @@
         times[i] = document.getElementById(`time_period_${i}`).value;
       }
       localStorage.setItem("periodTimes", JSON.stringify(times));
-      alert("時限ごとの終了時刻を保存しました！");
+      alert("終了時刻を保存しました！");
       renderSchedule();
     }
 
     function saveNotificationTimes() {
-      const leave = document.getElementById("leaveSchoolTime").value;
-      const hw = document.getElementById("homeworkNoticeTime").value;
-      localStorage.setItem("leaveSchoolTime", leave);
-      localStorage.setItem("homeworkNoticeTime", hw);
+      localStorage.setItem("leaveSchoolTime", document.getElementById("leaveSchoolTime").value);
+      localStorage.setItem("homeworkNoticeTime", document.getElementById("homeworkNoticeTime").value);
     }
 
-    // ポップアップ操作
-    function openEntryModal(period, subject, existingData, currentHomework) {
-      activePeriod = period;
-      activeSubjectName = subject;
-      const dateStr = document.getElementById("selectedDate").value;
-      const dateObj = new Date(dateStr + "T00:00:00");
-      const days = ["日", "月", "火", "水", "木", "金", "土"];
-      
-      document.getElementById("modalHeaderTitle").innerText = 
-        `${dateObj.getMonth() + 1}月${dateObj.getDate()}日(${days[dateObj.getDay()]}) ${period}限 "${subject}"`;
-      
-      document.getElementById("modalLessonContent").value = existingData?.lesson || "";
-      document.getElementById("modalHomeworkContent").value = (currentHomework !== undefined) ? currentHomework : (existingData?.homework || "");
-      
-      document.getElementById("entryModal").style.display = "flex";
-    }
-
-    function openEditSubjectModal(day, period, currentSub) {
-      editingDay = day;
-      editingPeriod = period;
-      const days = ["", "月", "火", "水", "木", "金"];
-      document.getElementById("editSubjectTitle").innerText = `${days[day]}曜 ${period}限の教科を変更`;
-      document.getElementById("targetSubjectName").value = currentSub === "-" ? "" : currentSub;
-      document.getElementById("editSubjectModal").style.display = "flex";
-    }
-
-    function closeModal(modalId) {
-      document.getElementById(modalId).style.display = "none";
-    }
-
-    function saveModalEntry() {
-      const dateStr = document.getElementById("selectedDate").value;
-      const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
-      const hwValue = document.getElementById("modalHomeworkContent").value.trim();
-
-      if (!dayData[activePeriod]) dayData[activePeriod] = {};
-      dayData[activePeriod].lesson = document.getElementById("modalLessonContent").value;
-      dayData[activePeriod].homework = hwValue;
-
-      localStorage.setItem("dayData_" + dateStr, JSON.stringify(dayData));
-
-      // 教科ごとの最新宿題として保存（次回授業への引き継ぎ用）
-      if (activeSubjectName && activeSubjectName !== "-") {
-        const subjectHomeworks = getSubjectHomeworks();
-        subjectHomeworks[activeSubjectName] = hwValue;
-        localStorage.setItem("subjectHomeworks", JSON.stringify(subjectHomeworks));
-      }
-
-      closeModal("entryModal");
-      renderSchedule();
-    }
-
-    function saveSubjectChange() {
-      const newSubject = document.getElementById("targetSubjectName").value.trim() || "-";
-      const master = getMasterSchedule();
-      if (!master[editingDay]) master[editingDay] = [];
-      master[editingDay][editingPeriod - 1] = newSubject;
-
-      localStorage.setItem("masterSchedule", JSON.stringify(master));
-      closeModal("editSubjectModal");
-      renderWeeklyTable();
-      renderSchedule();
+    function closeModal(id) {
+      document.getElementById(id).style.display = "none";
     }
   </script>
 </body>
