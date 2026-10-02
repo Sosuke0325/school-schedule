@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>時間割管理</title>
 
-  <!-- PWA設定 & iPhone用アプリアイコン指定の補強 -->
+  <!-- PWA設定 & iPhone用アプリアイコン指定 -->
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -287,7 +287,6 @@
       cursor: pointer;
       flex-shrink: 0;
     }
-    /* パターン1：完了状態（打ち消し線＆薄字） */
     .item-row.is-completed {
       color: var(--text-sub);
     }
@@ -701,6 +700,19 @@
         </div>
       </div>
 
+      <!-- データ引継ぎ・バックアップ枠（追加） -->
+      <div class="setting-card">
+        <div class="setting-title">📦 データ移行・バックアップ</div>
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">古いアプリから新しいアプリへデータを引き継ぐときや、バックアップを取りたいときに使用します。</p>
+        <div class="form-group">
+          <textarea id="backupDataArea" rows="3" placeholder="「データを書き出し」を押すとここにコードが表示されます。新しいアプリではここに貼り付けて「復元」を押してください。"></textarea>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="exportData()">データを書き出し</button>
+          <button class="btn btn-primary" onclick="importData()">データを復元</button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -720,7 +732,6 @@
         <div class="template-chips" id="hwTemplateChips"></div>
       </div>
 
-      <!-- 修正：確実にタップできるようにlabel構造とスタイルを最適化 -->
       <div class="form-group">
         <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;" onclick="toggleDueDateFromWrap()">
           <input type="checkbox" id="modalHasDueDate" style="width: 18px; height: 18px; cursor: pointer;" onclick="event.stopPropagation(); toggleDueDateInput();">
@@ -936,7 +947,6 @@
           homework = dayData[i].homework;
         } else if (subject !== "-" && subjectHomeworks[subject]) {
           const hwObj = subjectHomeworks[subject];
-          // 未完了のものだけを時間割に引き継ぐ
           if (!hwObj.completed && (!hwObj.dueDate || hwObj.dueDate >= dateStr)) {
             homework = hwObj.text;
             isCarried = true;
@@ -962,7 +972,6 @@
       }
     }
 
-    // 宿題タブの描画（パターン1：チェックで打ち消し線、外して復元）
     function renderHomeworkTab() {
       const todayStr = getTodayString();
       const todayObj = new Date(todayStr + "T00:00:00");
@@ -1020,7 +1029,7 @@
         });
       }
 
-      // 2. 次回授業締め切りの宿題（パターン1：チェックボックスでトグル）
+      // 2. 次回授業締め切りの宿題
       const tomorrowHwList = document.getElementById("tomorrowHomeworkList");
       tomorrowHwList.innerHTML = "";
       let hasTomorrowHw = false;
@@ -1066,7 +1075,6 @@
       }
     }
 
-    // パターン1：宿題の完了／復元を切り替え
     function toggleHomeworkDone(subject, isChecked) {
       const subjectHomeworks = getSubjectHomeworks();
       if (subjectHomeworks[subject]) {
@@ -1077,7 +1085,6 @@
       renderSchedule();
     }
 
-    // 提出期限日チェックの開閉処理（確実に反応するように修正）
     function toggleDueDateFromWrap() {
       const cb = document.getElementById("modalHasDueDate");
       cb.checked = !cb.checked;
@@ -1328,6 +1335,55 @@
     function saveNotificationTimes() {
       localStorage.setItem("leaveSchoolTime", document.getElementById("leaveSchoolTime").value);
       localStorage.setItem("homeworkNoticeTime", document.getElementById("homeworkNoticeTime").value);
+    }
+
+    // データ書き出し機能（全localStorageデータをJSONテキスト化）
+    function exportData() {
+      const allData = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        allData[key] = localStorage.getItem(key);
+      }
+      const jsonStr = JSON.stringify(allData);
+      const area = document.getElementById("backupDataArea");
+      area.value = jsonStr;
+      area.select();
+      
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(jsonStr).then(() => {
+          alert("引き継ぎ用データをクリップボードにコピーしました！\n新しいアプリの入力欄に貼り付けて「復元」を押してください。");
+        }).catch(() => {
+          alert("引き継ぎ用データを出力しました！\n枠内の文字をすべてコピーしてください。");
+        });
+      } else {
+        alert("引き継ぎ用データを出力しました！\n枠内の文字をすべてコピーしてください。");
+      }
+    }
+
+    // データ読み込み・復元機能
+    function importData() {
+      const area = document.getElementById("backupDataArea");
+      const text = area.value.trim();
+      if (!text) {
+        alert("貼り付けられたデータが空です。");
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed !== "object" || parsed === null) throw new Error();
+
+        if (!confirm("データを復元して上書きしますか？")) return;
+
+        for (let key in parsed) {
+          localStorage.setItem(key, parsed[key]);
+        }
+
+        alert("データの引き継ぎ・復元が完了しました！");
+        location.reload();
+      } catch (e) {
+        alert("データの形式が正しくありません。コピーした内容をそのまま貼り付けてください。");
+      }
     }
 
     function closeModal(id) {
