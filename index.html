@@ -36,6 +36,10 @@
       --warning-border: #fde68a;
       --warning-text: #b45309;
       --overlay-bg: rgba(0, 0, 0, 0.45);
+      --badge-exam-bg: #fee2e2;
+      --badge-exam-text: #ef4444;
+      --badge-quiz-bg: #eff6ff;
+      --badge-quiz-text: #2563eb;
     }
 
     /* 端末設定に合わせたダークモード */
@@ -58,6 +62,10 @@
         --warning-border: #854d0e;
         --warning-text: #fde68a;
         --overlay-bg: rgba(0, 0, 0, 0.75);
+        --badge-exam-bg: #451a1a;
+        --badge-exam-text: #f87171;
+        --badge-quiz-bg: #1e3a5f;
+        --badge-quiz-text: #60a5fa;
       }
     }
 
@@ -144,7 +152,7 @@
       background: var(--card-active);
     }
 
-    /* テストカウンター帯 */
+    /* テストカウンター帯（定期考査のみ連動） */
     .test-counter-banner {
       background: var(--card-bg);
       border-bottom: 1px solid var(--border);
@@ -230,6 +238,8 @@
       padding-left: 12px;
       display: flex;
       align-items: center;
+      justify-content: center;
+      text-align: center;
     }
 
     .hw-preview {
@@ -290,13 +300,42 @@
     .item-row.is-completed {
       color: var(--text-sub);
     }
-    .item-row.is-completed .hw-text {
+    .item-row.is-completed .item-text {
       text-decoration: line-through;
       opacity: 0.65;
     }
     .item-empty {
       font-size: 0.85rem;
       color: var(--text-sub);
+    }
+
+    /* テストバッジスタイル */
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+    .badge-exam {
+      background: var(--badge-exam-bg);
+      color: var(--badge-exam-text);
+    }
+    .badge-quiz {
+      background: var(--badge-quiz-bg);
+      color: var(--badge-quiz-text);
+    }
+    .test-days-tag {
+      margin-left: auto;
+      font-size: 0.82rem;
+      color: var(--primary);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .test-days-tag.urgent {
+      color: var(--danger);
     }
 
     /* 候補ボタン群 */
@@ -531,7 +570,7 @@
       color: var(--text);
     }
 
-    .subject-rule-card {
+    .subject-rule-card, .test-item-card {
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 12px 14px;
@@ -544,7 +583,7 @@
       transition: background 0.15s;
       width: 100%;
     }
-    .subject-rule-card:active {
+    .subject-rule-card:active, .test-item-card:active {
       background: var(--card-active);
     }
   </style>
@@ -560,6 +599,7 @@
       </div>
     </header>
 
+    <!-- トップ帯：直近の「定期考査」のみを自動カウントダウン -->
     <div id="testCounterBanner" class="test-counter-banner" style="display: none;">
       <span id="testCounterText">🎯 <span id="testNameLabel">定期テスト</span>まで あと</span>
       <span class="test-counter-days" id="testDaysLeft">0</span>日
@@ -576,6 +616,16 @@
       <div style="font-weight: 600; font-size: 1.05rem;">宿題・持ち物チェック</div>
     </header>
     <div class="container">
+      
+      <!-- 宿題タブ最上部：控えているテスト（考査・小テストを統合表示） -->
+      <div class="hw-card" id="upcomingTestsCard">
+        <div class="hw-card-title">
+          <span>📝 控えているテスト</span>
+        </div>
+        <ul class="item-list" id="upcomingTestsList"></ul>
+      </div>
+
+      <!-- 今日持ち帰るもの（チェック＆打ち消し線、状態保持） -->
       <div class="hw-card">
         <div class="hw-card-title">
           <span>🎒 今日持ち帰るもの</span>
@@ -584,6 +634,7 @@
         <ul class="item-list" id="tomorrowItemsList"></ul>
       </div>
 
+      <!-- 翌日締め切りの宿題 -->
       <div class="hw-card">
         <div class="hw-card-title">
           <span id="nextHomeworkTitle">📝 明日締め切りの宿題</span>
@@ -591,6 +642,7 @@
         <ul class="item-list" id="tomorrowHomeworkList"></ul>
       </div>
 
+      <!-- 今日出された宿題 -->
       <div class="hw-card">
         <div class="hw-card-title">
           <span>📖 今日出された宿題</span>
@@ -606,21 +658,24 @@
       <div style="font-weight: 600; font-size: 1.05rem;">設定・時間割管理</div>
     </header>
     <div class="container">
-      
-      <!-- テスト日程設定 -->
+
+      <!-- 統合：テスト日程の登録（考査 / 小テスト） -->
       <div class="setting-card">
-        <div class="setting-title">🎯 次回テスト設定（カウンター用）</div>
-        <div class="form-group">
-          <label>テスト名</label>
-          <input type="text" id="testNameInput" placeholder="例: 2学期中間考査">
-        </div>
-        <div class="form-group">
-          <label>テスト開始日</label>
-          <input type="date" id="testDateInput">
-        </div>
-        <div style="display: flex; gap: 8px; width: 100%;">
-          <button class="btn btn-secondary" style="flex: 0 0 90px;" onclick="clearTestSettings()">クリア</button>
-          <button class="btn btn-primary" onclick="saveTestSettings()">日程を保存</button>
+        <div class="setting-title">🎯 テスト日程の登録（考査・小テスト）</div>
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">定期考査はトップ帯のカウントダウンと連動します。</p>
+        <div id="testsListContainer"></div>
+        <button class="btn btn-secondary" style="width: 100%; margin-top: 6px;" onclick="openTestModal()">＋ テスト日程を追加</button>
+      </div>
+
+      <!-- 持ち帰り表示条件の設定 -->
+      <div class="setting-card">
+        <div class="setting-title">🎒 「今日持ち帰るもの」の表示条件</div>
+        <div class="form-group" style="margin-bottom: 4px;">
+          <select id="bringHomeRuleSelect" onchange="saveBringHomeRule()">
+            <option value="both">両方（今日出た宿題 ＋ 翌日締切の課題）</option>
+            <option value="todayOnly">今日出された宿題のみ</option>
+            <option value="dueOnly">翌日締め切りの課題のみ</option>
+          </select>
         </div>
       </div>
 
@@ -653,7 +708,7 @@
         </div>
         <div class="form-group">
           <label>変更後の教科名</label>
-          <input type="text" id="temporarySubjectInput" placeholder="例: 自習、学活">
+          <input type="text" id="temporarySubjectInput" placeholder="例：自習、学活">
         </div>
         <button class="btn btn-primary" style="width: 100%;" onclick="saveTemporarySubject()">臨時教科を適用</button>
       </div>
@@ -700,16 +755,13 @@
         </div>
       </div>
 
-      <!-- データ引継ぎ・バックアップ枠（追加） -->
+      <!-- データのバックアップ・復元（セーフティ機能） -->
       <div class="setting-card">
-        <div class="setting-title">📦 データ移行・バックアップ</div>
-        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">古いアプリから新しいアプリへデータを引き継ぐときや、バックアップを取りたいときに使用します。</p>
-        <div class="form-group">
-          <textarea id="backupDataArea" rows="3" placeholder="「データを書き出し」を押すとここにコードが表示されます。新しいアプリではここに貼り付けて「復元」を押してください。"></textarea>
-        </div>
+        <div class="setting-title">💾 データのバックアップ・復元</div>
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">アイコンの再配置や端末移行時にデータを保存・復元できます。</p>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-secondary" onclick="exportData()">データを書き出し</button>
-          <button class="btn btn-primary" onclick="importData()">データを復元</button>
+          <button class="btn btn-secondary" onclick="exportData()">データをコピー</button>
+          <button class="btn btn-secondary" onclick="importData()">データを復元</button>
         </div>
       </div>
 
@@ -728,14 +780,14 @@
 
       <div class="form-group">
         <label>宿題</label>
-        <input type="text" id="modalHomeworkContent" placeholder="例: ワーク p.24〜25">
+        <input type="text" id="modalHomeworkContent" placeholder="例：ワーク p.24〜25">
         <div class="template-chips" id="hwTemplateChips"></div>
       </div>
 
       <div class="form-group">
         <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;" onclick="toggleDueDateFromWrap()">
           <input type="checkbox" id="modalHasDueDate" style="width: 18px; height: 18px; cursor: pointer;" onclick="event.stopPropagation(); toggleDueDateInput();">
-          <span style="font-size: 0.88rem; color: var(--text);">提出期限日を指定する（次回授業ではない場合）</span>
+          <span style="font-size: 0.88rem; color: var(--text);">提出期限日を指定する（翌日授業ではない場合）</span>
         </div>
         <div id="dueDateWrap" style="display: none; margin-top: 8px;">
           <input type="date" id="modalHomeworkDueDate">
@@ -749,6 +801,43 @@
     </div>
   </div>
 
+  <!-- ポップアップ：テスト登録・編集モーダル -->
+  <div class="modal-overlay" id="testModal">
+    <div class="modal-box">
+      <div class="modal-title" id="testModalTitle">テスト日程の登録</div>
+      <input type="hidden" id="editTestId">
+
+      <div class="form-group">
+        <label>種別</label>
+        <select id="modalTestType">
+          <option value="exam">定期考査（カウンター連動）</option>
+          <option value="quiz">小テスト</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>テスト名・範囲</label>
+        <input type="text" id="modalTestName" placeholder="例：中間考査 数学I / 単語テスト #1">
+      </div>
+
+      <div class="form-group">
+        <label>教科名（任意）</label>
+        <input type="text" id="modalTestSubject" placeholder="例：数学, 英語">
+      </div>
+
+      <div class="form-group">
+        <label>実施日</label>
+        <input type="date" id="modalTestDate">
+      </div>
+
+      <div class="modal-actions">
+        <button id="btnDeleteTest" class="btn btn-danger" style="display: none;" onclick="deleteCurrentTest()">削除</button>
+        <button class="btn btn-secondary" onclick="closeModal('testModal')">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveTestItem()">保存</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ポップアップ：教科ルール追加・編集モーダル -->
   <div class="modal-overlay" id="ruleModal">
     <div class="modal-box">
@@ -757,15 +846,15 @@
 
       <div class="form-group">
         <label>教科名</label>
-        <input type="text" id="ruleSubjectName" placeholder="例: 英語">
+        <input type="text" id="ruleSubjectName" placeholder="例：英語">
       </div>
       <div class="form-group">
         <label>よく出る宿題候補（カンマ区切り）</label>
-        <input type="text" id="ruleHwTemplates" placeholder="例: ワーク, 単語プリント">
+        <input type="text" id="ruleHwTemplates" placeholder="例：ワーク, 単語プリント">
       </div>
       <div class="form-group">
         <label>持ち帰るもの（カンマ区切り）</label>
-        <input type="text" id="ruleItems" placeholder="例: 教科書, ワーク, 単語帳">
+        <input type="text" id="ruleItems" placeholder="例：教科書, ワーク, 単語帳">
       </div>
 
       <div class="modal-actions">
@@ -804,6 +893,7 @@
 
     let activePeriod = null;
     let activeSubjectName = null;
+    let lastKnownTodayStr = "";
 
     function getTodayString() {
       const d = new Date();
@@ -830,32 +920,90 @@
       return data ? JSON.parse(data) : {};
     }
 
+    function getTestsList() {
+      const data = localStorage.getItem("testsList");
+      return data ? JSON.parse(data) : [];
+    }
+
+    function getBringHomeRule() {
+      const val = localStorage.getItem("bringHomeRule") || "both";
+      // 旧設定（timetableAll）が残っている場合はデフォルトのbothにフォールバック
+      return val === "timetableAll" ? "both" : val;
+    }
+
+    /* 過去分の持ち物チェック履歴（checkedItems_YYYY-MM-DD）を自動クリーンアップ */
+    function cleanupOldCheckedItems() {
+      const todayStr = getTodayString();
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("checkedItems_")) {
+          const datePart = key.replace("checkedItems_", "");
+          if (datePart < todayStr) {
+            keysToRemove.push(key);
+          }
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    }
+
+    /* 指定日の実際の時間割配列（1〜7限、臨時時間割反映済み）を取得 */
+    function getActualSubjectsForDate(dateStr) {
+      const dateObj = new Date(dateStr + "T00:00:00");
+      const dayOfWeek = dateObj.getDay();
+      const master = getMasterSchedule();
+      const baseSubjects = master[dayOfWeek] || ["-", "-", "-", "-", "-", "-", "-"];
+      const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
+
+      const result = [];
+      for (let i = 1; i <= 7; i++) {
+        const sub = dayData[i]?.customSubject || baseSubjects[i - 1] || "-";
+        result.push(sub);
+      }
+      return result;
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
+      lastKnownTodayStr = getTodayString();
+      cleanupOldCheckedItems();
       setToday();
 
-      document.getElementById("temporaryDateInput").value = getTodayString();
-
-      document.getElementById("testNameInput").value = localStorage.getItem("testName") || "定期テスト";
-      const savedTestDate = localStorage.getItem("testDate");
-      document.getElementById("testDateInput").value = savedTestDate || getTodayString();
-
+      document.getElementById("temporaryDateInput").value = lastKnownTodayStr;
       document.getElementById("leaveSchoolTime").value = localStorage.getItem("leaveSchoolTime") || "15:25";
       document.getElementById("homeworkNoticeTime").value = localStorage.getItem("homeworkNoticeTime") || "20:00";
+      document.getElementById("bringHomeRuleSelect").value = getBringHomeRule();
 
       updateTestCounter();
       renderWeeklyTable();
       renderPeriodTimeInputs();
       renderSubjectRules();
+      renderTestsSettingsList();
     });
 
+    /* バックグラウンドからの復帰時に日付変更を検知して自動更新 */
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
+        const currentToday = getTodayString();
+        if (lastKnownTodayStr && lastKnownTodayStr !== currentToday) {
+          const selectedDateEl = document.getElementById("selectedDate");
+          if (selectedDateEl.value === lastKnownTodayStr) {
+            selectedDateEl.value = currentToday;
+          }
+          lastKnownTodayStr = currentToday;
+          cleanupOldCheckedItems();
+          renderSchedule();
+        }
         updateTestCounter();
+        if (document.getElementById("pageHomework").classList.contains("active")) {
+          renderHomeworkTab();
+        }
       }
     });
 
     function setToday() {
-      document.getElementById("selectedDate").value = getTodayString();
+      const todayStr = getTodayString();
+      lastKnownTodayStr = todayStr;
+      document.getElementById("selectedDate").value = todayStr;
       renderSchedule();
     }
 
@@ -875,69 +1023,62 @@
         document.getElementById("tabSettings").classList.add("active");
         renderWeeklyTable();
         renderSubjectRules();
+        renderTestsSettingsList();
       }
     }
 
+    /* トップ帯：直近の「定期考査」のみを自動判定してカウントダウン */
     function updateTestCounter() {
-      const testDateStr = localStorage.getItem("testDate");
-      const testName = localStorage.getItem("testName") || "定期テスト";
       const banner = document.getElementById("testCounterBanner");
+      const tests = getTestsList();
+      const todayStr = getTodayString();
 
-      if (!testDateStr) {
+      const futureExams = tests
+        .filter(t => t.type === "exam" && t.date >= todayStr)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      if (futureExams.length === 0) {
         banner.style.display = "none";
         return;
       }
 
-      const today = new Date(getTodayString() + "T00:00:00");
-      const testDate = new Date(testDateStr + "T00:00:00");
-      const diffTime = testDate.getTime() - today.getTime();
+      const nextExam = futureExams[0];
+      const today = new Date(todayStr + "T00:00:00");
+      const examDate = new Date(nextExam.date + "T00:00:00");
+      const diffTime = examDate.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays >= 0) {
-        banner.style.display = "flex";
-        document.getElementById("testNameLabel").innerText = testName;
-        document.getElementById("testDaysLeft").innerText = diffDays;
-        if (diffDays <= 3) {
-          banner.classList.add("near");
-        } else {
-          banner.classList.remove("near");
-        }
+      banner.style.display = "flex";
+      document.getElementById("testNameLabel").innerText = nextExam.name;
+      document.getElementById("testDaysLeft").innerText = diffDays;
+      if (diffDays <= 3) {
+        banner.classList.add("near");
       } else {
-        banner.style.display = "none";
+        banner.classList.remove("near");
       }
     }
 
-    function saveTestSettings() {
-      localStorage.setItem("testName", document.getElementById("testNameInput").value.trim());
-      localStorage.setItem("testDate", document.getElementById("testDateInput").value);
-      alert("テスト日程を保存しました！");
-      updateTestCounter();
+    function saveBringHomeRule() {
+      const val = document.getElementById("bringHomeRuleSelect").value;
+      localStorage.setItem("bringHomeRule", val);
+      renderHomeworkTab();
     }
 
-    function clearTestSettings() {
-      if (!confirm("テストカウンターの設定を解除（クリア）しますか？")) return;
-      localStorage.removeItem("testDate");
-      document.getElementById("testDateInput").value = getTodayString();
-      updateTestCounter();
-    }
-
+    /* 時間割の描画 */
     function renderSchedule() {
       const dateStr = document.getElementById("selectedDate").value;
       if (!dateStr) return;
 
-      const dateObj = new Date(dateStr + "T00:00:00");
-      const dayOfWeek = dateObj.getDay();
-      const master = getMasterSchedule();
-      const currentSubjects = master[dayOfWeek] || ["-", "-", "-", "-", "-", "-", "-"];
+      const subjects = getActualSubjectsForDate(dateStr);
       const times = getPeriodTimes();
       const subjectHomeworks = getSubjectHomeworks();
-
       const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
+
       const listContainer = document.getElementById("timetableList");
       listContainer.innerHTML = "";
 
       for (let i = 1; i <= 7; i++) {
-        const subject = dayData[i]?.customSubject || currentSubjects[i - 1] || "-";
+        const subject = subjects[i - 1] || "-";
         if (i === 7 && (subject === "-" || subject.trim() === "")) continue;
 
         let homework = "";
@@ -972,6 +1113,7 @@
       }
     }
 
+    /* 宿題・持ち物タブの描画 */
     function renderHomeworkTab() {
       const todayStr = getTodayString();
       const todayObj = new Date(todayStr + "T00:00:00");
@@ -979,6 +1121,9 @@
       const days = ["日", "月", "火", "水", "木", "金", "土"];
 
       document.getElementById("todayDateLabel").innerText = `${todayObj.getMonth() + 1}/${todayObj.getDate()}(${days[todayDayOfWeek]})`;
+
+      // 1. 最上部：控えているテスト（直近予定の日付順）
+      renderUpcomingTests();
 
       let daysToAdd = 1;
       let isWeekendSkip = false;
@@ -993,48 +1138,86 @@
       const nextSchoolObj = new Date(todayObj);
       nextSchoolObj.setDate(nextSchoolObj.getDate() + daysToAdd);
       const nextSchoolStr = `${nextSchoolObj.getFullYear()}-${String(nextSchoolObj.getMonth() + 1).padStart(2, '0')}-${String(nextSchoolObj.getDate()).padStart(2, '0')}`;
-      const nextSchoolDayOfWeek = nextSchoolObj.getDay();
 
       const hwTitleEl = document.getElementById("nextHomeworkTitle");
       if (hwTitleEl) {
-        hwTitleEl.innerText = isWeekendSkip ? "📝 月曜締め切りの宿題" : "📝 明日締め切りの宿題";
+        hwTitleEl.innerText = isWeekendSkip ? "📝 月曜締め切りの宿題" : "📝 翌日締め切りの宿題";
       }
 
       const rules = getSubjectRules();
       const subjectHomeworks = getSubjectHomeworks();
-      const master = getMasterSchedule();
-      const nextSchoolSubjects = master[nextSchoolDayOfWeek] || [];
+      const todaySubjects = getActualSubjectsForDate(todayStr);
+      const nextSchoolSubjectsRaw = getActualSubjectsForDate(nextSchoolStr);
+      const nextSchoolUniqueSubjects = [...new Set(nextSchoolSubjectsRaw.filter(s => s && s !== "-"))];
+      const todayDayData = JSON.parse(localStorage.getItem("dayData_" + todayStr) || "{}");
 
-      // 1. 今日持ち帰るもの
-      const tomorrowItemsList = document.getElementById("tomorrowItemsList");
-      tomorrowItemsList.innerHTML = "";
-      const itemsSet = new Set();
+      // 2. 今日持ち帰るもの（表示条件に基づく抽出 ＆ 打ち消し線・保持）
+      const ruleChoice = getBringHomeRule();
+      const targetSubjects = new Set();
 
-      nextSchoolSubjects.forEach(sub => {
-        if (rules[sub] && rules[sub].items) {
-          rules[sub].items.forEach(it => itemsSet.add(`${sub}：${it}`));
+      // (A) 今日出された宿題の教科
+      const todayHwSubjects = new Set();
+      for (let i = 1; i <= 7; i++) {
+        if (todayDayData[i]?.homework) {
+          const sub = todaySubjects[i - 1];
+          if (sub && sub !== "-") todayHwSubjects.add(sub);
+        }
+      }
+
+      // (B) 翌日締め切りの課題の教科
+      const dueHwSubjects = new Set();
+      nextSchoolUniqueSubjects.forEach(sub => {
+        if (subjectHomeworks[sub] && subjectHomeworks[sub].text) {
+          const hw = subjectHomeworks[sub];
+          if (!hw.dueDate || hw.dueDate === nextSchoolStr) {
+            dueHwSubjects.add(sub);
+          }
         }
       });
 
-      if (itemsSet.size === 0) {
+      if (ruleChoice === "both") {
+        todayHwSubjects.forEach(s => targetSubjects.add(s));
+        dueHwSubjects.forEach(s => targetSubjects.add(s));
+      } else if (ruleChoice === "todayOnly") {
+        todayHwSubjects.forEach(s => targetSubjects.add(s));
+      } else if (ruleChoice === "dueOnly") {
+        dueHwSubjects.forEach(s => targetSubjects.add(s));
+      }
+
+      const tomorrowItemsList = document.getElementById("tomorrowItemsList");
+      tomorrowItemsList.innerHTML = "";
+      const itemsList = [];
+
+      targetSubjects.forEach(sub => {
+        if (rules[sub] && rules[sub].items) {
+          rules[sub].items.forEach(it => itemsList.push({ key: `${sub}：${it}`, sub, it }));
+        }
+      });
+
+      const checkedItemsKey = "checkedItems_" + todayStr;
+      const checkedMap = JSON.parse(localStorage.getItem(checkedItemsKey) || "{}");
+
+      if (itemsList.length === 0) {
         tomorrowItemsList.innerHTML = `<li class="item-empty">持ち帰るものはありません</li>`;
       } else {
-        itemsSet.forEach(item => {
+        itemsList.forEach((item, index) => {
+          const isDone = Boolean(checkedMap[item.key]);
+          const rowId = `item_chk_${index}`;
           tomorrowItemsList.innerHTML += `
-            <li class="item-row">
-              <input type="checkbox">
-              <span>${item}</span>
+            <li class="item-row ${isDone ? 'is-completed' : ''}" id="${rowId}_wrap">
+              <input type="checkbox" id="${rowId}" ${isDone ? 'checked' : ''} onchange="toggleBringHomeCheck('${todayStr}', '${item.key.replace(/'/g, "\\'")}', this.checked, '${rowId}_wrap')">
+              <label for="${rowId}" class="item-text" style="cursor: pointer;">${item.key}</label>
             </li>
           `;
         });
       }
 
-      // 2. 次回授業締め切りの宿題
+      // 3. 翌日授業締め切りの宿題
       const tomorrowHwList = document.getElementById("tomorrowHomeworkList");
       tomorrowHwList.innerHTML = "";
       let hasTomorrowHw = false;
 
-      nextSchoolSubjects.forEach(sub => {
+      nextSchoolUniqueSubjects.forEach(sub => {
         if (subjectHomeworks[sub] && subjectHomeworks[sub].text) {
           const hw = subjectHomeworks[sub];
           if (!hw.dueDate || hw.dueDate === nextSchoolStr) {
@@ -1042,19 +1225,18 @@
             const isDone = Boolean(hw.completed);
             tomorrowHwList.innerHTML += `
               <li class="item-row ${isDone ? 'is-completed' : ''}">
-                <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleHomeworkDone('${sub}', this.checked)">
-                <span class="hw-text"><b>${sub}</b>：${hw.text}</span>
+                <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleHomeworkDone('${sub.replace(/'/g, "\\'")}', this.checked)">
+                <span class="item-text"><b>${sub}</b>：${hw.text}</span>
               </li>
             `;
           }
         }
       });
       if (!hasTomorrowHw) {
-        tomorrowHwList.innerHTML = `<li class="item-empty">${isWeekendSkip ? "月曜" : "明日"}提出の宿題はありません</li>`;
+        tomorrowHwList.innerHTML = `<li class="item-empty">${isWeekendSkip ? "月曜" : "翌日"}提出の宿題はありません</li>`;
       }
 
-      // 3. 今日出された宿題
-      const todayDayData = JSON.parse(localStorage.getItem("dayData_" + todayStr) || "{}");
+      // 4. 今日出された宿題
       const todayHwList = document.getElementById("todayHomeworkList");
       todayHwList.innerHTML = "";
       let hasTodayHw = false;
@@ -1062,10 +1244,10 @@
       for (let i = 1; i <= 7; i++) {
         if (todayDayData[i]?.homework) {
           hasTodayHw = true;
-          const sub = todayDayData[i].customSubject || (master[todayDayOfWeek] && master[todayDayOfWeek][i - 1]) || `${i}限`;
+          const sub = todaySubjects[i - 1] !== "-" ? todaySubjects[i - 1] : `${i}限`;
           todayHwList.innerHTML += `
             <li class="item-row">
-              <span><b>${sub}</b>：${todayDayData[i].homework}</span>
+              <span class="item-text"><b>${sub}</b>：${todayDayData[i].homework}</span>
             </li>
           `;
         }
@@ -1075,6 +1257,63 @@
       }
     }
 
+    /* 宿題タブ最上部：控えているテスト一覧描画 */
+    function renderUpcomingTests() {
+      const listEl = document.getElementById("upcomingTestsList");
+      listEl.innerHTML = "";
+      const tests = getTestsList();
+      const todayStr = getTodayString();
+      const today = new Date(todayStr + "T00:00:00");
+
+      const upcoming = tests
+        .filter(t => t.date >= todayStr)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      if (upcoming.length === 0) {
+        listEl.innerHTML = `<li class="item-empty">直近で控えているテストはありません</li>`;
+        return;
+      }
+
+      const daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"];
+      upcoming.forEach(t => {
+        const tDate = new Date(t.date + "T00:00:00");
+        const diffDays = Math.ceil((tDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const dateFormatted = `${tDate.getMonth() + 1}/${tDate.getDate()}(${daysOfWeek[tDate.getDay()]})`;
+
+        const isExam = t.type === "exam";
+        const badgeClass = isExam ? "badge-exam" : "badge-quiz";
+        const badgeText = isExam ? "考査" : "小テスト";
+        const urgentClass = diffDays <= 3 ? "urgent" : "";
+        const daysText = diffDays === 0 ? "本日" : `あと${diffDays}日`;
+
+        listEl.innerHTML += `
+          <li class="item-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border);">
+            <span class="badge ${badgeClass}">${badgeText}</span>
+            <span class="item-text"><b>${dateFormatted}</b> ${t.subject ? `[${t.subject}] ` : ''}${t.name}</span>
+            <span class="test-days-tag ${urgentClass}">${daysText}</span>
+          </li>
+        `;
+      });
+    }
+
+    /* 今日持ち帰るもののチェック保持（パターン1） */
+    function toggleBringHomeCheck(dateStr, itemKey, isChecked, wrapId) {
+      const storageKey = "checkedItems_" + dateStr;
+      const checkedMap = JSON.parse(localStorage.getItem(storageKey) || "{}");
+      checkedMap[itemKey] = isChecked;
+      localStorage.setItem(storageKey, JSON.stringify(checkedMap));
+
+      const wrap = document.getElementById(wrapId);
+      if (wrap) {
+        if (isChecked) {
+          wrap.classList.add("is-completed");
+        } else {
+          wrap.classList.remove("is-completed");
+        }
+      }
+    }
+
+    /* 宿題完了チェックのトグル */
     function toggleHomeworkDone(subject, isChecked) {
       const subjectHomeworks = getSubjectHomeworks();
       if (subjectHomeworks[subject]) {
@@ -1085,6 +1324,7 @@
       renderSchedule();
     }
 
+    /* 提出期限日チェック */
     function toggleDueDateFromWrap() {
       const cb = document.getElementById("modalHasDueDate");
       cb.checked = !cb.checked;
@@ -1100,6 +1340,7 @@
       }
     }
 
+    /* 授業内容・宿題入力モーダル */
     function openEntryModal(period, subject, existingData, currentHomework) {
       activePeriod = period;
       activeSubjectName = subject;
@@ -1166,6 +1407,122 @@
       renderSchedule();
     }
 
+    /* テスト登録モーダル操作（設定タブ側） */
+    function openTestModal(testId = null) {
+      const title = document.getElementById("testModalTitle");
+      const editIdInput = document.getElementById("editTestId");
+      const typeSelect = document.getElementById("modalTestType");
+      const nameInput = document.getElementById("modalTestName");
+      const subjectInput = document.getElementById("modalTestSubject");
+      const dateInput = document.getElementById("modalTestDate");
+      const delBtn = document.getElementById("btnDeleteTest");
+
+      if (testId) {
+        const tests = getTestsList();
+        const t = tests.find(x => x.id === testId);
+        if (!t) return;
+        title.innerText = "テスト日程の編集";
+        editIdInput.value = t.id;
+        typeSelect.value = t.type;
+        nameInput.value = t.name;
+        subjectInput.value = t.subject || "";
+        dateInput.value = t.date;
+        delBtn.style.display = "block";
+      } else {
+        title.innerText = "テスト日程の新規登録";
+        editIdInput.value = "";
+        typeSelect.value = "exam";
+        nameInput.value = "";
+        subjectInput.value = "";
+        dateInput.value = getTodayString();
+        delBtn.style.display = "none";
+      }
+
+      document.getElementById("testModal").style.display = "flex";
+    }
+
+    function saveTestItem() {
+      const editId = document.getElementById("editTestId").value;
+      const type = document.getElementById("modalTestType").value;
+      const name = document.getElementById("modalTestName").value.trim();
+      const subject = document.getElementById("modalTestSubject").value.trim();
+      const date = document.getElementById("modalTestDate").value;
+
+      if (!name || !date) {
+        alert("テスト名と実施日を入力してください。");
+        return;
+      }
+
+      const tests = getTestsList();
+      if (editId) {
+        const idx = tests.findIndex(x => x.id === editId);
+        if (idx !== -1) {
+          tests[idx] = { id: editId, type, name, subject, date };
+        }
+      } else {
+        tests.push({
+          id: "test_" + Date.now(),
+          type,
+          name,
+          subject,
+          date
+        });
+      }
+
+      localStorage.setItem("testsList", JSON.stringify(tests));
+      closeModal("testModal");
+      renderTestsSettingsList();
+      updateTestCounter();
+    }
+
+    function deleteCurrentTest() {
+      const editId = document.getElementById("editTestId").value;
+      if (!editId) return;
+      if (!confirm("このテスト日程を削除しますか？")) return;
+
+      let tests = getTestsList();
+      tests = tests.filter(x => x.id !== editId);
+      localStorage.setItem("testsList", JSON.stringify(tests));
+
+      closeModal("testModal");
+      renderTestsSettingsList();
+      updateTestCounter();
+    }
+
+    function renderTestsSettingsList() {
+      const container = document.getElementById("testsListContainer");
+      container.innerHTML = "";
+      const tests = getTestsList();
+
+      if (tests.length === 0) {
+        container.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-sub); padding: 4px 0;">登録されているテスト日程はありません。</div>`;
+        return;
+      }
+
+      tests.sort((a, b) => a.date.localeCompare(b.date));
+      tests.forEach(t => {
+        const isExam = t.type === "exam";
+        const badgeClass = isExam ? "badge-exam" : "badge-quiz";
+        const badgeText = isExam ? "考査" : "小テスト";
+
+        const div = document.createElement("div");
+        div.className = "test-item-card";
+        div.onclick = () => openTestModal(t.id);
+        div.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="badge ${badgeClass}">${badgeText}</span>
+            <div>
+              <div style="font-weight: 600; font-size: 0.95rem;">${t.name}</div>
+              <div style="font-size: 0.8rem; color: var(--text-sub);">実施日：${t.date}${t.subject ? ` ｜ 教科：${t.subject}` : ''}</div>
+            </div>
+          </div>
+          <span style="color: var(--text-sub); font-size: 1.1rem; padding-left: 8px;">›</span>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    /* 教科別ルール設定 */
     function renderSubjectRules() {
       const rules = getSubjectRules();
       const container = document.getElementById("subjectRulesContainer");
@@ -1235,7 +1592,6 @@
       const items = document.getElementById("ruleItems").value.split(",").map(s => s.trim()).filter(Boolean);
 
       const rules = getSubjectRules();
-
       if (origSub && origSub !== sub) {
         delete rules[origSub];
       }
@@ -1260,6 +1616,7 @@
       renderSubjectRules();
     }
 
+    /* 臨時時間割 */
     function saveTemporarySubject() {
       const dateStr = document.getElementById("temporaryDateInput").value;
       const period = document.getElementById("temporaryPeriodSelect").value;
@@ -1279,6 +1636,7 @@
       renderSchedule();
     }
 
+    /* 基本時間割テーブル */
     function renderWeeklyTable() {
       const master = getMasterSchedule();
       const tbody = document.getElementById("weeklyTableBody");
@@ -1288,7 +1646,7 @@
         let rowHtml = `<tr><td class="period-col">${p}</td>`;
         for (let d = 1; d <= 5; d++) {
           const subject = (master[d] && master[d][p - 1]) ? master[d][p - 1] : "-";
-          rowHtml += `<td onclick="quickEditMaster(${d}, ${p}, '${subject}')">${subject}</td>`;
+          rowHtml += `<td onclick="quickEditMaster(${d}, ${p}, '${subject.replace(/'/g, "\\'")}')">${subject}</td>`;
         }
         rowHtml += `</tr>`;
         tbody.innerHTML += rowHtml;
@@ -1296,7 +1654,8 @@
     }
 
     function quickEditMaster(day, period, cur) {
-      const next = prompt(`${day}曜 ${period}限の教科名を入力してください:`, cur === "-" ? "" : cur);
+      const dayNames = ["日", "月", "火", "水", "木", "金", "土"];
+      const next = prompt(`${dayNames[day]}曜 ${period}限の教科名を入力してください：`, cur === "-" ? "" : cur);
       if (next !== null) {
         const master = getMasterSchedule();
         if (!master[day]) master[day] = [];
@@ -1307,6 +1666,7 @@
       }
     }
 
+    /* 終了時刻 */
     function renderPeriodTimeInputs() {
       const times = getPeriodTimes();
       const container = document.getElementById("periodTimesContainer");
@@ -1337,52 +1697,33 @@
       localStorage.setItem("homeworkNoticeTime", document.getElementById("homeworkNoticeTime").value);
     }
 
-    // データ書き出し機能（全localStorageデータをJSONテキスト化）
+    /* バックアップ・復元 */
     function exportData() {
-      const allData = {};
+      const dump = {};
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        allData[key] = localStorage.getItem(key);
+        dump[key] = localStorage.getItem(key);
       }
-      const jsonStr = JSON.stringify(allData);
-      const area = document.getElementById("backupDataArea");
-      area.value = jsonStr;
-      area.select();
-      
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(jsonStr).then(() => {
-          alert("引き継ぎ用データをクリップボードにコピーしました！\n新しいアプリの入力欄に貼り付けて「復元」を押してください。");
-        }).catch(() => {
-          alert("引き継ぎ用データを出力しました！\n枠内の文字をすべてコピーしてください。");
-        });
-      } else {
-        alert("引き継ぎ用データを出力しました！\n枠内の文字をすべてコピーしてください。");
-      }
+      const jsonStr = JSON.stringify(dump);
+      navigator.clipboard.writeText(jsonStr).then(() => {
+        alert("設定とデータをクリップボードにコピーしました！メモ帳等に貼り付けて保存できます。");
+      }).catch(() => {
+        prompt("以下のテキストをコピーして保存してください：", jsonStr);
+      });
     }
 
-    // データ読み込み・復元機能
     function importData() {
-      const area = document.getElementById("backupDataArea");
-      const text = area.value.trim();
-      if (!text) {
-        alert("貼り付けられたデータが空です。");
-        return;
-      }
-
+      const jsonStr = prompt("コピーして保存したバックアップテキストを貼り付けてください：");
+      if (!jsonStr) return;
       try {
-        const parsed = JSON.parse(text);
-        if (typeof parsed !== "object" || parsed === null) throw new Error();
-
-        if (!confirm("データを復元して上書きしますか？")) return;
-
-        for (let key in parsed) {
-          localStorage.setItem(key, parsed[key]);
+        const dump = JSON.parse(jsonStr);
+        for (let k in dump) {
+          localStorage.setItem(k, dump[k]);
         }
-
-        alert("データの引き継ぎ・復元が完了しました！");
+        alert("データを正常に復元しました！アプリを再読み込みします。");
         location.reload();
       } catch (e) {
-        alert("データの形式が正しくありません。コピーした内容をそのまま貼り付けてください。");
+        alert("データの復元に失敗しました。正しいJSONテキストか確認してください。");
       }
     }
 
