@@ -309,15 +309,19 @@
       color: var(--text-sub);
     }
 
-    /* テストバッジスタイル */
+    /* テストバッジスタイル（幅を統一して右隣の日付を縦揃え） */
     .badge {
-      display: inline-block;
-      padding: 2px 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      padding: 2px 6px;
       border-radius: 4px;
       font-size: 0.75rem;
       font-weight: 600;
       margin-right: 6px;
       flex-shrink: 0;
+      text-align: center;
     }
     .badge-exam {
       background: var(--badge-exam-bg);
@@ -327,14 +331,14 @@
       background: var(--badge-quiz-bg);
       color: var(--badge-quiz-text);
     }
-    .test-days-tag {
+    .test-days-tag, .hw-due-tag {
       margin-left: auto;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--primary);
       font-weight: 600;
       flex-shrink: 0;
     }
-    .test-days-tag.urgent {
+    .test-days-tag.urgent, .hw-due-tag.urgent {
       color: var(--danger);
     }
 
@@ -634,12 +638,20 @@
         <ul class="item-list" id="tomorrowItemsList"></ul>
       </div>
 
-      <!-- 翌日締め切りの宿題 -->
+      <!-- 翌日（月曜）締め切りの課題 -->
       <div class="hw-card">
         <div class="hw-card-title">
-          <span id="nextHomeworkTitle">📝 明日締め切りの宿題</span>
+          <span id="nextHomeworkTitle">📝 翌日締め切りの課題</span>
         </div>
         <ul class="item-list" id="tomorrowHomeworkList"></ul>
+      </div>
+
+      <!-- 期限日を指定した課題 -->
+      <div class="hw-card">
+        <div class="hw-card-title">
+          <span>📅 期限日を指定した課題</span>
+        </div>
+        <ul class="item-list" id="dueDatedHomeworkList"></ul>
       </div>
 
       <!-- 今日出された宿題 -->
@@ -895,9 +907,24 @@
     let activeSubjectName = null;
     let lastKnownTodayStr = "";
 
-    function getTodayString() {
-      const d = new Date();
+    function formatDateStr(d) {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function getTodayString() {
+      return formatDateStr(new Date());
+    }
+
+    /* 時間割タブ用：今日が土曜・日曜なら自動的に次の月曜日の日付を返す */
+    function getDefaultScheduleDateString() {
+      const d = new Date();
+      const day = d.getDay();
+      if (day === 6) {
+        d.setDate(d.getDate() + 2);
+      } else if (day === 0) {
+        d.setDate(d.getDate() + 1);
+      }
+      return formatDateStr(d);
     }
 
     function getMasterSchedule() {
@@ -927,7 +954,6 @@
 
     function getBringHomeRule() {
       const val = localStorage.getItem("bringHomeRule") || "both";
-      // 旧設定（timetableAll）が残っている場合はデフォルトのbothにフォールバック
       return val === "timetableAll" ? "both" : val;
     }
 
@@ -968,7 +994,7 @@
       cleanupOldCheckedItems();
       setToday();
 
-      document.getElementById("temporaryDateInput").value = lastKnownTodayStr;
+      document.getElementById("temporaryDateInput").value = getDefaultScheduleDateString();
       document.getElementById("leaveSchoolTime").value = localStorage.getItem("leaveSchoolTime") || "15:25";
       document.getElementById("homeworkNoticeTime").value = localStorage.getItem("homeworkNoticeTime") || "20:00";
       document.getElementById("bringHomeRuleSelect").value = getBringHomeRule();
@@ -985,11 +1011,8 @@
       if (document.visibilityState === "visible") {
         const currentToday = getTodayString();
         if (lastKnownTodayStr && lastKnownTodayStr !== currentToday) {
-          const selectedDateEl = document.getElementById("selectedDate");
-          if (selectedDateEl.value === lastKnownTodayStr) {
-            selectedDateEl.value = currentToday;
-          }
           lastKnownTodayStr = currentToday;
+          document.getElementById("selectedDate").value = getDefaultScheduleDateString();
           cleanupOldCheckedItems();
           renderSchedule();
         }
@@ -1001,9 +1024,8 @@
     });
 
     function setToday() {
-      const todayStr = getTodayString();
-      lastKnownTodayStr = todayStr;
-      document.getElementById("selectedDate").value = todayStr;
+      lastKnownTodayStr = getTodayString();
+      document.getElementById("selectedDate").value = getDefaultScheduleDateString();
       renderSchedule();
     }
 
@@ -1125,6 +1147,7 @@
       // 1. 最上部：控えているテスト（直近予定の日付順）
       renderUpcomingTests();
 
+      // 金・土・日は次の月曜日を参照する
       let daysToAdd = 1;
       let isWeekendSkip = false;
       if (todayDayOfWeek === 5) {
@@ -1133,15 +1156,18 @@
       } else if (todayDayOfWeek === 6) {
         daysToAdd = 2;
         isWeekendSkip = true;
+      } else if (todayDayOfWeek === 0) {
+        daysToAdd = 1;
+        isWeekendSkip = true;
       }
 
       const nextSchoolObj = new Date(todayObj);
       nextSchoolObj.setDate(nextSchoolObj.getDate() + daysToAdd);
-      const nextSchoolStr = `${nextSchoolObj.getFullYear()}-${String(nextSchoolObj.getMonth() + 1).padStart(2, '0')}-${String(nextSchoolObj.getDate()).padStart(2, '0')}`;
+      const nextSchoolStr = formatDateStr(nextSchoolObj);
 
       const hwTitleEl = document.getElementById("nextHomeworkTitle");
       if (hwTitleEl) {
-        hwTitleEl.innerText = isWeekendSkip ? "📝 月曜締め切りの宿題" : "📝 翌日締め切りの宿題";
+        hwTitleEl.innerText = isWeekendSkip ? "📝 月曜締め切りの課題" : "📝 翌日締め切りの課題";
       }
 
       const rules = getSubjectRules();
@@ -1164,7 +1190,7 @@
         }
       }
 
-      // (B) 翌日締め切りの課題の教科
+      // (B) 翌日（月曜）締め切りの課題の教科（時間割にある期限なし宿題 ＋ 期限日が翌日/月曜までの課題）
       const dueHwSubjects = new Set();
       nextSchoolUniqueSubjects.forEach(sub => {
         if (subjectHomeworks[sub] && subjectHomeworks[sub].text) {
@@ -1172,6 +1198,12 @@
           if (!hw.dueDate || hw.dueDate === nextSchoolStr) {
             dueHwSubjects.add(sub);
           }
+        }
+      });
+      Object.keys(subjectHomeworks).forEach(sub => {
+        const hw = subjectHomeworks[sub];
+        if (hw && hw.text && hw.dueDate && hw.dueDate >= todayStr && hw.dueDate <= nextSchoolStr) {
+          dueHwSubjects.add(sub);
         }
       });
 
@@ -1212,31 +1244,68 @@
         });
       }
 
-      // 3. 翌日授業締め切りの宿題
+      // 3. 翌日（月曜）締め切りの課題（期限日を指定していない翌日時間割の宿題）
       const tomorrowHwList = document.getElementById("tomorrowHomeworkList");
       tomorrowHwList.innerHTML = "";
       let hasTomorrowHw = false;
 
       nextSchoolUniqueSubjects.forEach(sub => {
-        if (subjectHomeworks[sub] && subjectHomeworks[sub].text) {
-          const hw = subjectHomeworks[sub];
-          if (!hw.dueDate || hw.dueDate === nextSchoolStr) {
-            hasTomorrowHw = true;
-            const isDone = Boolean(hw.completed);
-            tomorrowHwList.innerHTML += `
-              <li class="item-row ${isDone ? 'is-completed' : ''}">
-                <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleHomeworkDone('${sub.replace(/'/g, "\\'")}', this.checked)">
-                <span class="item-text"><b>${sub}</b>：${hw.text}</span>
-              </li>
-            `;
-          }
+        const hw = subjectHomeworks[sub];
+        if (hw && hw.text && !hw.dueDate) {
+          hasTomorrowHw = true;
+          const isDone = Boolean(hw.completed);
+          tomorrowHwList.innerHTML += `
+            <li class="item-row ${isDone ? 'is-completed' : ''}">
+              <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleHomeworkDone('${sub.replace(/'/g, "\\'")}', this.checked)">
+              <span class="item-text"><b>${sub}</b>：${hw.text}</span>
+            </li>
+          `;
         }
       });
+
       if (!hasTomorrowHw) {
-        tomorrowHwList.innerHTML = `<li class="item-empty">${isWeekendSkip ? "月曜" : "翌日"}提出の宿題はありません</li>`;
+        tomorrowHwList.innerHTML = `<li class="item-empty">${isWeekendSkip ? "月曜" : "翌日"}締め切りの課題はありません</li>`;
       }
 
-      // 4. 今日出された宿題
+      // 4. 期限日を指定した課題（独立カード）
+      const dueDatedHwList = document.getElementById("dueDatedHomeworkList");
+      dueDatedHwList.innerHTML = "";
+      const dueDatedItems = [];
+
+      Object.keys(subjectHomeworks).forEach(sub => {
+        const hw = subjectHomeworks[sub];
+        if (hw && hw.text && hw.dueDate && hw.dueDate >= todayStr) {
+          dueDatedItems.push({
+            sub,
+            text: hw.text,
+            dueDate: hw.dueDate,
+            completed: Boolean(hw.completed)
+          });
+        }
+      });
+
+      dueDatedItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+      if (dueDatedItems.length === 0) {
+        dueDatedHwList.innerHTML = `<li class="item-empty">期限日を指定した課題はありません</li>`;
+      } else {
+        dueDatedItems.forEach(item => {
+          const dObj = new Date(item.dueDate + "T00:00:00");
+          const diffDays = Math.ceil((dObj.getTime() - todayObj.getTime()) / (1000 * 60 * 60 * 24));
+          const dateFormatted = `${dObj.getMonth() + 1}/${dObj.getDate()}(${days[dObj.getDay()]})まで`;
+          const urgentClass = diffDays <= 1 ? "urgent" : "";
+
+          dueDatedHwList.innerHTML += `
+            <li class="item-row ${item.completed ? 'is-completed' : ''}">
+              <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleHomeworkDone('${item.sub.replace(/'/g, "\\'")}', this.checked)">
+              <span class="item-text"><b>${item.sub}</b>：${item.text}</span>
+              <span class="hw-due-tag ${urgentClass}">${dateFormatted}</span>
+            </li>
+          `;
+        });
+      }
+
+      // 5. 今日出された宿題
       const todayHwList = document.getElementById("todayHomeworkList");
       todayHwList.innerHTML = "";
       let hasTodayHw = false;
@@ -1336,7 +1405,7 @@
       const wrap = document.getElementById("dueDateWrap");
       wrap.style.display = isChecked ? "block" : "none";
       if (isChecked && !document.getElementById("modalHomeworkDueDate").value) {
-        document.getElementById("modalHomeworkDueDate").value = getTodayString();
+        document.getElementById("modalHomeworkDueDate").value = getDefaultScheduleDateString();
       }
     }
 
@@ -1354,9 +1423,11 @@
       document.getElementById("modalLessonContent").value = existingData?.lesson || "";
       document.getElementById("modalHomeworkContent").value = (currentHomework && currentHomework !== "（宿題なし）") ? currentHomework : (existingData?.homework || "");
 
-      const hasDueDate = Boolean(existingData?.dueDate);
+      const subjectHomeworks = getSubjectHomeworks();
+      const savedDueDate = existingData?.dueDate || (subjectHomeworks[subject]?.text === currentHomework ? subjectHomeworks[subject]?.dueDate : "") || "";
+      const hasDueDate = Boolean(savedDueDate);
       document.getElementById("modalHasDueDate").checked = hasDueDate;
-      document.getElementById("modalHomeworkDueDate").value = existingData?.dueDate || getTodayString();
+      document.getElementById("modalHomeworkDueDate").value = savedDueDate || getDefaultScheduleDateString();
       document.getElementById("dueDateWrap").style.display = hasDueDate ? "block" : "none";
 
       const rules = getSubjectRules();
@@ -1434,7 +1505,7 @@
         typeSelect.value = "exam";
         nameInput.value = "";
         subjectInput.value = "";
-        dateInput.value = getTodayString();
+        dateInput.value = getDefaultScheduleDateString();
         delBtn.style.display = "none";
       }
 
