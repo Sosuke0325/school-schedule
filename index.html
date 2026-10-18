@@ -89,6 +89,7 @@
     b, strong, th,
     .period-num,
     .setting-title,
+    .hw-card-title,
     .modal-title,
     .date-picker-wrap,
     .tab-item,
@@ -268,12 +269,18 @@
       width: 100%;
     }
     .hw-card-title {
-      font-size: 0.95rem;
+      font-size: 1rem;
       color: var(--text);
       margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+    #todayDateLabel {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "HiraginoSans-W4", "Hiragino Sans W4", sans-serif;
+      font-weight: normal;
+      font-size: 0.78rem;
+      color: var(--text-sub);
     }
     .item-list {
       list-style: none;
@@ -621,7 +628,7 @@
     </header>
     <div class="container">
       
-      <!-- 宿題タブ最上部：控えているテスト（考査・小テストを統合表示） -->
+      <!-- 1. 控えているテスト（最上部） -->
       <div class="hw-card" id="upcomingTestsCard">
         <div class="hw-card-title">
           <span>📝 控えているテスト</span>
@@ -629,16 +636,16 @@
         <ul class="item-list" id="upcomingTestsList"></ul>
       </div>
 
-      <!-- 今日持ち帰るもの（チェック＆打ち消し線、状態保持） -->
+      <!-- 2. 今日持ち帰るもの -->
       <div class="hw-card">
         <div class="hw-card-title">
           <span>🎒 今日持ち帰るもの</span>
-          <span style="font-size: 0.78rem; color: var(--text-sub);" id="todayDateLabel"></span>
+          <span id="todayDateLabel"></span>
         </div>
         <ul class="item-list" id="tomorrowItemsList"></ul>
       </div>
 
-      <!-- 翌日（月曜）締め切りの課題 -->
+      <!-- 3. 翌日（月曜）締め切りの課題 -->
       <div class="hw-card">
         <div class="hw-card-title">
           <span id="nextHomeworkTitle">📝 翌日締め切りの課題</span>
@@ -646,7 +653,7 @@
         <ul class="item-list" id="tomorrowHomeworkList"></ul>
       </div>
 
-      <!-- 期限日を指定した課題 -->
+      <!-- 4. 期限日を指定した課題 -->
       <div class="hw-card">
         <div class="hw-card-title">
           <span>📅 期限日を指定した課題</span>
@@ -654,7 +661,7 @@
         <ul class="item-list" id="dueDatedHomeworkList"></ul>
       </div>
 
-      <!-- 今日出された宿題 -->
+      <!-- 5. 今日出された宿題（最下部） -->
       <div class="hw-card">
         <div class="hw-card-title">
           <span>📖 今日出された宿題</span>
@@ -664,14 +671,14 @@
     </div>
   </div>
 
-  <!-- 3. 設定タブ -->
+  <!-- 3. 設定タブ（グループ 3 → 2 → 1 → 4 の順） -->
   <div id="pageSettings" class="page">
     <header>
       <div style="font-weight: 600; font-size: 1.05rem;">設定・時間割管理</div>
     </header>
     <div class="container">
 
-      <!-- 統合：テスト日程の登録（考査 / 小テスト） -->
+      <!-- 【グループ3：テスト日程の設定】 -->
       <div class="setting-card">
         <div class="setting-title">🎯 テスト日程の登録（考査・小テスト）</div>
         <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">定期考査はトップ帯のカウントダウンと連動します。</p>
@@ -679,7 +686,14 @@
         <button class="btn btn-secondary" style="width: 100%; margin-top: 6px;" onclick="openTestModal()">＋ テスト日程を追加</button>
       </div>
 
-      <!-- 持ち帰り表示条件の設定 -->
+      <!-- 【グループ2：教科・持ち物の設定】 -->
+      <div class="setting-card">
+        <div class="setting-title">📚 教科別持ち物・宿題候補の登録</div>
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">カードをタップすると内容の編集や削除ができます。</p>
+        <div id="subjectRulesContainer"></div>
+        <button class="btn btn-secondary" style="margin-top: 8px; width: 100%;" onclick="openRuleModal()">＋ 教科ルールを追加</button>
+      </div>
+
       <div class="setting-card">
         <div class="setting-title">🎒 「今日持ち帰るもの」の表示条件</div>
         <div class="form-group" style="margin-bottom: 4px;">
@@ -691,15 +705,27 @@
         </div>
       </div>
 
-      <!-- 教科別テンプレート・持ち物設定 -->
+      <!-- 【グループ1：時間割・時限の設定（3点セット）】 -->
       <div class="setting-card">
-        <div class="setting-title">📚 教科別持ち物・宿題候補の登録</div>
-        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">カードをタップすると内容の編集や削除ができます。</p>
-        <div id="subjectRulesContainer"></div>
-        <button class="btn btn-secondary" style="margin-top: 8px; width: 100%;" onclick="openRuleModal()">＋ 教科ルールを追加</button>
+        <div class="setting-title">📅 基本時間割</div>
+        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 8px;">変更したいコマをタップすると教科名を編集できます。</p>
+        <div class="table-wrap">
+          <table class="schedule-table">
+            <thead>
+              <tr>
+                <th class="period-col">限</th>
+                <th>月</th>
+                <th>火</th>
+                <th>水</th>
+                <th>木</th>
+                <th>金</th>
+              </tr>
+            </thead>
+            <tbody id="weeklyTableBody"></tbody>
+          </table>
+        </div>
       </div>
 
-      <!-- 臨時時間割設定 -->
       <div class="setting-card">
         <div class="setting-title">⚡ 臨時時間割（日付を指定して1日のみ変更）</div>
         <div class="form-group">
@@ -725,28 +751,6 @@
         <button class="btn btn-primary" style="width: 100%;" onclick="saveTemporarySubject()">臨時教科を適用</button>
       </div>
 
-      <!-- 基本時間割カレンダー -->
-      <div class="setting-card">
-        <div class="setting-title">📅 基本時間割</div>
-        <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 8px;">変更したいコマをタップすると教科名を編集できます。</p>
-        <div class="table-wrap">
-          <table class="schedule-table">
-            <thead>
-              <tr>
-                <th class="period-col">限</th>
-                <th>月</th>
-                <th>火</th>
-                <th>水</th>
-                <th>木</th>
-                <th>金</th>
-              </tr>
-            </thead>
-            <tbody id="weeklyTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- 各時限の終了時刻 -->
       <div class="setting-card">
         <div class="setting-title">⏰ 各時限の終了時刻</div>
         <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">各時限の授業終了時刻を設定します。</p>
@@ -754,7 +758,7 @@
         <button class="btn btn-primary" style="margin-top: 12px; width: 100%;" onclick="savePeriodTimes()">終了時刻を保存</button>
       </div>
 
-      <!-- その他通知設定 -->
+      <!-- 【グループ4：システム・データ管理】 -->
       <div class="setting-card">
         <div class="setting-title">🔔 その他の通知時刻（未リリース）</div>
         <div class="form-group">
@@ -767,7 +771,6 @@
         </div>
       </div>
 
-      <!-- データのバックアップ・復元（セーフティ機能） -->
       <div class="setting-card">
         <div class="setting-title">💾 データのバックアップ・復元</div>
         <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 10px;">アイコンの再配置や端末移行時にデータを保存・復元できます。</p>
