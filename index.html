@@ -349,6 +349,24 @@
       color: var(--danger);
     }
 
+    /* 期限付き課題の削除ボタン（案A） */
+    .btn-del-inline {
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      font-size: 1.05rem;
+      line-height: 1;
+      padding: 2px 6px;
+      margin-left: 2px;
+      cursor: pointer;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .btn-del-inline:active {
+      background: var(--card-active);
+      color: var(--danger);
+    }
+
     /* 候補ボタン群 */
     .template-chips {
       display: flex;
@@ -945,9 +963,44 @@
       return data ? JSON.parse(data) : {};
     }
 
+    /* 翌日締め切りの通常宿題（教科ごと） */
     function getSubjectHomeworks() {
       const data = localStorage.getItem("subjectHomeworks");
       return data ? JSON.parse(data) : {};
+    }
+
+    /* 期限日を指定した課題リスト（複数ストック可能） */
+    function getDueDatedHomeworks() {
+      const data = localStorage.getItem("dueDatedHomeworks");
+      return data ? JSON.parse(data) : [];
+    }
+
+    /* 旧バージョンでsubjectHomeworks内に保存されていた期限付き課題を新リストへ自動移行 */
+    function migrateLegacyDueDatedHomeworks() {
+      const subjectHomeworks = getSubjectHomeworks();
+      const dueList = getDueDatedHomeworks();
+      let changed = false;
+
+      Object.keys(subjectHomeworks).forEach(sub => {
+        const hw = subjectHomeworks[sub];
+        if (hw && hw.dueDate) {
+          dueList.push({
+            id: "dd_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+            subject: sub,
+            text: hw.text,
+            dueDate: hw.dueDate,
+            completed: Boolean(hw.completed),
+            sourceKey: ""
+          });
+          delete subjectHomeworks[sub];
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        localStorage.setItem("subjectHomeworks", JSON.stringify(subjectHomeworks));
+        localStorage.setItem("dueDatedHomeworks", JSON.stringify(dueList));
+      }
     }
 
     function getTestsList() {
@@ -960,8 +1013,8 @@
       return val === "timetableAll" ? "both" : val;
     }
 
-    /* 過去分の持ち物チェック履歴（checkedItems_YYYY-MM-DD）を自動クリーンアップ */
-    function cleanupOldCheckedItems() {
+    /* 過去分の持ち物チェック履歴 ＆ 期限切れの期限付き課題を自動クリーンアップ */
+    function cleanupOldData() {
       const todayStr = getTodayString();
       const keysToRemove = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -974,6 +1027,13 @@
         }
       }
       keysToRemove.forEach(k => localStorage.removeItem(k));
+
+      // 期限日が過ぎた課題を自動削除
+      const dueList = getDueDatedHomeworks();
+      const validDueList = dueList.filter(item => item.dueDate >= todayStr);
+      if (validDueList.length !== dueList.length) {
+        localStorage.setItem("dueDatedHomeworks", JSON.stringify(validDueList));
+      }
     }
 
     /* 指定日の実際の時間割配列（1〜7限、臨時時間割反映済み）を取得 */
@@ -994,7 +1054,8 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       lastKnownTodayStr = getTodayString();
-      cleanupOldCheckedItems();
+      migrateLegacyDueDatedHomeworks();
+      cleanupOldData();
       setToday();
 
       document.getElementById("temporaryDateInput").value = getDefaultScheduleDateString();
@@ -1016,7 +1077,7 @@
         if (lastKnownTodayStr && lastKnownTodayStr !== currentToday) {
           lastKnownTodayStr = currentToday;
           document.getElementById("selectedDate").value = getDefaultScheduleDateString();
-          cleanupOldCheckedItems();
+          cleanupOldData();
           renderSchedule();
         }
         updateTestCounter();
@@ -1097,6 +1158,7 @@
       const subjects = getActualSubjectsForDate(dateStr);
       const times = getPeriodTimes();
       const subjectHomeworks = getSubjectHomeworks();
+      const dueList = getDueDatedHomeworks();
       const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
 
       const listContainer = document.getElementById("timetableList");
@@ -1106,26 +1168,36 @@
         const subject = subjects[i - 1] || "-";
         if (i === 7 && (subject === "-" || subject.trim() === "")) continue;
 
-        let homework = "";
+        let previewText = "";
         let isCarried = false;
 
+        // 1. その日のそのコマに直接登録された宿題があればそれを表示
         if (dayData[i]?.homework !== undefined && dayData[i]?.homework !== "") {
-          homework = dayData[i].homework;
-        } else if (subject !== "-" && subjectHomeworks[subject]) {
-          const hwObj = subjectHomeworks[subject];
-          if (!hwObj.completed && (!hwObj.dueDate || hwObj.dueDate >= dateStr)) {
-            homework = hwObj.text;
+          previewText = dayData[i].homework;
+        } else if (subject !== "-") {
+          // 2. なければ未完了の持ち越し宿題（通常宿題 ＆ 期限付き課題）をプレビュー表示
+          const carriedParts = [];
+          if (subjectHomeworks[subject] && !subjectHomeworks[subject].completed && subjectHomeworks[subject].text) {
+            carriedParts.push(subjectHomeworks[subject].text);
+          }
+          dueList.forEach(dd => {
+            if (dd.subject === subject && !dd.completed && dd.dueDate >= dateStr) {
+              carriedParts.push(dd.text);
+            }
+          });
+          if (carriedParts.length > 0) {
+            previewText = carriedParts.join(" / ");
             isCarried = true;
           }
         }
 
-        const homeworkText = homework ? homework : "（宿題なし）";
-        const carriedClass = (isCarried && homework) ? "hw-carried" : "";
+        const homeworkText = previewText ? previewText : "（宿題なし）";
+        const carriedClass = (isCarried && previewText) ? "hw-carried" : "";
         const endTime = times[i] ? `~${times[i]}` : "";
 
         const li = document.createElement("li");
         li.className = "timetable-item";
-        li.onclick = () => openEntryModal(i, subject, dayData[i], homework);
+        li.onclick = () => openEntryModal(i, subject);
         li.innerHTML = `
           <div class="period-badge">
             <span class="period-num">${i}限</span>
@@ -1175,6 +1247,7 @@
 
       const rules = getSubjectRules();
       const subjectHomeworks = getSubjectHomeworks();
+      const dueList = getDueDatedHomeworks().filter(item => item.dueDate >= todayStr);
       const todaySubjects = getActualSubjectsForDate(todayStr);
       const nextSchoolSubjectsRaw = getActualSubjectsForDate(nextSchoolStr);
       const nextSchoolUniqueSubjects = [...new Set(nextSchoolSubjectsRaw.filter(s => s && s !== "-"))];
@@ -1193,20 +1266,16 @@
         }
       }
 
-      // (B) 翌日（月曜）締め切りの課題の教科（時間割にある期限なし宿題 ＋ 期限日が翌日/月曜までの課題）
+      // (B) 翌日（月曜）締め切りの課題の教科（翌日時間割の通常宿題 ＋ 期限日が翌日/月曜までの期限付き課題）
       const dueHwSubjects = new Set();
       nextSchoolUniqueSubjects.forEach(sub => {
         if (subjectHomeworks[sub] && subjectHomeworks[sub].text) {
-          const hw = subjectHomeworks[sub];
-          if (!hw.dueDate || hw.dueDate === nextSchoolStr) {
-            dueHwSubjects.add(sub);
-          }
+          dueHwSubjects.add(sub);
         }
       });
-      Object.keys(subjectHomeworks).forEach(sub => {
-        const hw = subjectHomeworks[sub];
-        if (hw && hw.text && hw.dueDate && hw.dueDate >= todayStr && hw.dueDate <= nextSchoolStr) {
-          dueHwSubjects.add(sub);
+      dueList.forEach(dd => {
+        if (dd.dueDate <= nextSchoolStr && dd.subject && dd.subject !== "-") {
+          dueHwSubjects.add(dd.subject);
         }
       });
 
@@ -1254,7 +1323,7 @@
 
       nextSchoolUniqueSubjects.forEach(sub => {
         const hw = subjectHomeworks[sub];
-        if (hw && hw.text && !hw.dueDate) {
+        if (hw && hw.text) {
           hasTomorrowHw = true;
           const isDone = Boolean(hw.completed);
           tomorrowHwList.innerHTML += `
@@ -1270,29 +1339,16 @@
         tomorrowHwList.innerHTML = `<li class="item-empty">${isWeekendSkip ? "月曜" : "翌日"}締め切りの課題はありません</li>`;
       }
 
-      // 4. 期限日を指定した課題（独立カード）
+      // 4. 期限日を指定した課題（複数ストック・個別チェック＆削除可能）
       const dueDatedHwList = document.getElementById("dueDatedHomeworkList");
       dueDatedHwList.innerHTML = "";
-      const dueDatedItems = [];
 
-      Object.keys(subjectHomeworks).forEach(sub => {
-        const hw = subjectHomeworks[sub];
-        if (hw && hw.text && hw.dueDate && hw.dueDate >= todayStr) {
-          dueDatedItems.push({
-            sub,
-            text: hw.text,
-            dueDate: hw.dueDate,
-            completed: Boolean(hw.completed)
-          });
-        }
-      });
+      const sortedDueList = [...dueList].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
-      dueDatedItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-
-      if (dueDatedItems.length === 0) {
+      if (sortedDueList.length === 0) {
         dueDatedHwList.innerHTML = `<li class="item-empty">期限日を指定した課題はありません</li>`;
       } else {
-        dueDatedItems.forEach(item => {
+        sortedDueList.forEach(item => {
           const dObj = new Date(item.dueDate + "T00:00:00");
           const diffDays = Math.ceil((dObj.getTime() - todayObj.getTime()) / (1000 * 60 * 60 * 24));
           const dateFormatted = `${dObj.getMonth() + 1}/${dObj.getDate()}(${days[dObj.getDay()]})まで`;
@@ -1300,9 +1356,10 @@
 
           dueDatedHwList.innerHTML += `
             <li class="item-row ${item.completed ? 'is-completed' : ''}">
-              <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleHomeworkDone('${item.sub.replace(/'/g, "\\'")}', this.checked)">
-              <span class="item-text"><b>${item.sub}</b>：${item.text}</span>
+              <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleDueDatedHomeworkDone('${item.id}', this.checked)">
+              <span class="item-text"><b>${item.subject}</b>：${item.text}</span>
               <span class="hw-due-tag ${urgentClass}">${dateFormatted}</span>
+              <button type="button" class="btn-del-inline" title="削除" onclick="deleteDueDatedHomework('${item.id}')">×</button>
             </li>
           `;
         });
@@ -1385,13 +1442,48 @@
       }
     }
 
-    /* 宿題完了チェックのトグル */
+    /* 翌日締め切り課題の完了チェックのトグル */
     function toggleHomeworkDone(subject, isChecked) {
       const subjectHomeworks = getSubjectHomeworks();
       if (subjectHomeworks[subject]) {
         subjectHomeworks[subject].completed = isChecked;
         localStorage.setItem("subjectHomeworks", JSON.stringify(subjectHomeworks));
       }
+      renderHomeworkTab();
+      renderSchedule();
+    }
+
+    /* 期限付き課題の完了チェックのトグル */
+    function toggleDueDatedHomeworkDone(id, isChecked) {
+      const dueList = getDueDatedHomeworks();
+      const target = dueList.find(item => item.id === id);
+      if (target) {
+        target.completed = isChecked;
+        localStorage.setItem("dueDatedHomeworks", JSON.stringify(dueList));
+      }
+      renderHomeworkTab();
+      renderSchedule();
+    }
+
+    /* 期限付き課題の個別削除（案A） */
+    function deleteDueDatedHomework(id) {
+      let dueList = getDueDatedHomeworks();
+      const target = dueList.find(item => item.id === id);
+      if (!target) return;
+
+      // 登録元のコマデータ（dayData）に同じ課題が残っていればクリア
+      if (target.sourceKey) {
+        const [dStr, pStr] = target.sourceKey.split("_");
+        const dayData = JSON.parse(localStorage.getItem("dayData_" + dStr) || "{}");
+        if (dayData[pStr] && dayData[pStr].homework === target.text) {
+          dayData[pStr].homework = "";
+          dayData[pStr].dueDate = "";
+          localStorage.setItem("dayData_" + dStr, JSON.stringify(dayData));
+        }
+      }
+
+      dueList = dueList.filter(item => item.id !== id);
+      localStorage.setItem("dueDatedHomeworks", JSON.stringify(dueList));
       renderHomeworkTab();
       renderSchedule();
     }
@@ -1412,22 +1504,23 @@
       }
     }
 
-    /* 授業内容・宿題入力モーダル */
-    function openEntryModal(period, subject, existingData, currentHomework) {
+    /* 授業内容・宿題入力モーダル（その日のコマに入力した内容のみを表示し、別日の課題を勝手に引っ張ってこない） */
+    function openEntryModal(period, subject) {
       activePeriod = period;
       activeSubjectName = subject;
       const dateStr = document.getElementById("selectedDate").value;
       const dateObj = new Date(dateStr + "T00:00:00");
       const days = ["日", "月", "火", "水", "木", "金", "土"];
+      const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
+      const existingData = dayData[period] || {};
       
       document.getElementById("modalHeaderTitle").innerText = 
         `${dateObj.getMonth() + 1}月${dateObj.getDate()}日(${days[dateObj.getDay()]}) ${period}限 ${subject}`;
       
-      document.getElementById("modalLessonContent").value = existingData?.lesson || "";
-      document.getElementById("modalHomeworkContent").value = (currentHomework && currentHomework !== "（宿題なし）") ? currentHomework : (existingData?.homework || "");
+      document.getElementById("modalLessonContent").value = existingData.lesson || "";
+      document.getElementById("modalHomeworkContent").value = existingData.homework || "";
 
-      const subjectHomeworks = getSubjectHomeworks();
-      const savedDueDate = existingData?.dueDate || (subjectHomeworks[subject]?.text === currentHomework ? subjectHomeworks[subject]?.dueDate : "") || "";
+      const savedDueDate = existingData.dueDate || "";
       const hasDueDate = Boolean(savedDueDate);
       document.getElementById("modalHasDueDate").checked = hasDueDate;
       document.getElementById("modalHomeworkDueDate").value = savedDueDate || getDefaultScheduleDateString();
@@ -1456,9 +1549,12 @@
     function saveModalEntry() {
       const dateStr = document.getElementById("selectedDate").value;
       const dayData = JSON.parse(localStorage.getItem("dayData_" + dateStr) || "{}");
+      const prevHw = dayData[activePeriod]?.homework || "";
+      const prevDueDate = dayData[activePeriod]?.dueDate || "";
+
       const hwValue = document.getElementById("modalHomeworkContent").value.trim();
       const hasDueDate = document.getElementById("modalHasDueDate").checked;
-      const dueDate = hasDueDate ? document.getElementById("modalHomeworkDueDate").value : "";
+      const dueDate = (hasDueDate && hwValue) ? document.getElementById("modalHomeworkDueDate").value : "";
 
       if (!dayData[activePeriod]) dayData[activePeriod] = {};
       dayData[activePeriod].lesson = document.getElementById("modalLessonContent").value;
@@ -1468,13 +1564,48 @@
       localStorage.setItem("dayData_" + dateStr, JSON.stringify(dayData));
 
       if (activeSubjectName && activeSubjectName !== "-") {
+        const sourceKey = `${dateStr}_${activePeriod}`;
         const subjectHomeworks = getSubjectHomeworks();
+        let dueList = getDueDatedHomeworks();
+
         if (hwValue) {
-          subjectHomeworks[activeSubjectName] = { text: hwValue, dueDate: dueDate, completed: false };
+          if (dueDate) {
+            // 期限日指定あり：期限付き課題リストに蓄積（同じコマからの再編集なら更新、別コマなら新規追加）
+            const existingIdx = dueList.findIndex(item => item.sourceKey === sourceKey);
+            if (existingIdx !== -1) {
+              dueList[existingIdx].subject = activeSubjectName;
+              dueList[existingIdx].text = hwValue;
+              dueList[existingIdx].dueDate = dueDate;
+            } else {
+              dueList.push({
+                id: "dd_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+                subject: activeSubjectName,
+                text: hwValue,
+                dueDate: dueDate,
+                completed: false,
+                sourceKey: sourceKey
+              });
+            }
+            // もし同じコマで直前に「期限なし宿題」として登録していたものを期限付きに変えた場合のみ、通常宿題側をクリア
+            if (!prevDueDate && prevHw && subjectHomeworks[activeSubjectName]?.text === prevHw) {
+              delete subjectHomeworks[activeSubjectName];
+            }
+          } else {
+            // 期限日指定なし：翌日締め切りの通常宿題として保存（期限付き課題リストは一切消さない）
+            subjectHomeworks[activeSubjectName] = { text: hwValue, completed: false };
+            // もし同じコマで直前に登録した期限付き課題を期限なしに変更した場合のみ、そのコマ由来の期限付き課題を削除
+            dueList = dueList.filter(item => item.sourceKey !== sourceKey);
+          }
         } else {
-          delete subjectHomeworks[activeSubjectName];
+          // 入力欄が空にされた場合：そのコマで登録していた通常宿題またはそのコマ由来の期限付き課題のみを消去（別日の課題は残す）
+          if (!prevDueDate && prevHw && subjectHomeworks[activeSubjectName]?.text === prevHw) {
+            delete subjectHomeworks[activeSubjectName];
+          }
+          dueList = dueList.filter(item => item.sourceKey !== sourceKey);
         }
+
         localStorage.setItem("subjectHomeworks", JSON.stringify(subjectHomeworks));
+        localStorage.setItem("dueDatedHomeworks", JSON.stringify(dueList));
       }
 
       closeModal("entryModal");
